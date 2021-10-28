@@ -3,7 +3,7 @@ MCalc2: Matrix Calculator 2
 Written in C++.
 
 Usage:
-  mcalc ["expression"/filename]
+  mcalc2 ["expression"/filename]
 
 Syntax:
   Use Matlab-style vectors & matrices.
@@ -21,7 +21,7 @@ Operators by precedence (first to last):
   ^
   + - (unary)
   '
-  / \ % * o - .- + .+
+  / \ % * o ./ .* - +
   = += -= *= /= \= %=
   ,
   ; [ ] ( )
@@ -29,7 +29,7 @@ Notes:
   '     is transpose (eg: M')
   o     is the tensor product
   \     is for square matrices (eg: A\B)
-  .+ .- are element-wise operations
+  .* ./ are element-wise operations
 
 Keywords:
   help: Print this info (works in cmd)
