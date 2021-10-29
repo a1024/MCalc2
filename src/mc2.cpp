@@ -54,7 +54,7 @@ void		print_help()
 		"  \'     is transpose (eg: M\')\n"
 		"  o     is the tensor product\n"
 		"  \\     is for square matrices (eg: A\\B)\n"
-	//	"  %%     makes fraction objects (eg: F=num%%den)\n"
+	//	"  %%     makes fraction objects (eg: F=num%%den)\n"//X  it's the modulus operator
 		"  .* ./ are element-wise operations\n"
 		"\n"
 		"Keywords:\n"
@@ -76,9 +76,9 @@ void		print_help()
 		"  I(n): n-square identity matrix\n"//autosize?
 		"  det: determinant of square matrix\n"
 		"  inv: inverse of square matrix\n"
+		"  tr: trace of square matrix\n"
 	//	"  diag: diagonal factorization of square matrix\n"//TODO
 	//	"  lu: LU factorization of square matrix\n"
-		"  tr: trace of square matrix\n"
 	//	"Polynomials:\n"
 	//	"  roots: find the roots\n"
 	//	"Fraction objects:\n"

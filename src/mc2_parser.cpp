@@ -260,6 +260,7 @@ bool		r_row_vector(Matrix &m)
 					//memcpy(m.data+newdx*ky+m.dx, m2.data+m2.dx*ky, m2.dx*sizeof(double));
 				}
 				m.dx=newdx;
+				m.name=nullptr;
 			}
 			continue;
 		}
@@ -288,6 +289,7 @@ bool		r_postfix(Matrix &m, bool space_sensitive)//pre-allocated
 						for(int k=0;k<ncomp;++k)
 							m.data[ncomp*(m.dx*ky+kx)+k]=data[ncomp*(m.dy*kx+ky)+k];
 				free(data);
+				m.name=nullptr;
 			}
 			continue;
 		default:
@@ -327,6 +329,7 @@ bool		r_unary(Matrix &m, bool space_sensitive)
 		case T_TAN:case T_ATAN:case T_TAND:case T_ATAND:case T_TANH:case T_ATANH:
 		case T_COT:case T_ACOT:case T_COTD:case T_ACOTD:case T_COTH:case T_ACOTH:
 		case T_GAMMA:
+			m.name=nullptr;
 			if(lex_get(false)!=T_LPR)
 				return user_error2(idx0, idx, "Expected an opening parenthesis \'(\' of function call");
 			if(!r_assign_expr(m, false))
@@ -469,6 +472,7 @@ bool		r_unary(Matrix &m, bool space_sensitive)
 		case T_LDIV:
 		case T_CROSS:
 			{
+				m.name=nullptr;
 				Matrix m2;
 				if(lex_get(false)!=T_LPR)
 					return user_error2(idx0, idx, "Expected an opening parenthesis \'(\' of function call");
@@ -532,6 +536,7 @@ bool		r_unary(Matrix &m, bool space_sensitive)
 			//region - constants
 #if 1
 		case T_NUMBER:
+			m.name=nullptr;
 			m.type=T_REAL;
 			m.dx=1, m.dy=1;
 			DALLOC(m.data, 1);
@@ -540,6 +545,7 @@ bool		r_unary(Matrix &m, bool space_sensitive)
 			return r_postfix(m, space_sensitive);
 		case T_IMAG:
 		case T_IMAG_UNUSED:
+			m.name=nullptr;
 			m.type=T_COMPLEX;
 			m.dx=1, m.dy=1;
 			DALLOC(m.data, 2);
@@ -548,6 +554,7 @@ bool		r_unary(Matrix &m, bool space_sensitive)
 			m.data[1]=1;
 			return r_postfix(m, space_sensitive);
 		case T_EULER:
+			m.name=nullptr;
 			m.type=T_REAL;
 			m.dx=1, m.dy=1;
 			DALLOC(m.data, 1);
@@ -555,6 +562,7 @@ bool		r_unary(Matrix &m, bool space_sensitive)
 			m.data[0]=_e;
 			return r_postfix(m, space_sensitive);
 		case T_PI:
+			m.name=nullptr;
 			m.type=T_REAL;
 			m.dx=1, m.dy=1;
 			DALLOC(m.data, 1);
@@ -562,6 +570,7 @@ bool		r_unary(Matrix &m, bool space_sensitive)
 			m.data[0]=_pi;
 			return r_postfix(m, space_sensitive);
 		case T_INF:
+			m.name=nullptr;
 			m.type=T_REAL;
 			m.dx=1, m.dy=1;
 			DALLOC(m.data, 1);
@@ -569,6 +578,7 @@ bool		r_unary(Matrix &m, bool space_sensitive)
 			m.data[0]=_HUGE;
 			return r_postfix(m, space_sensitive);
 		case T_NAN:
+			m.name=nullptr;
 			m.type=T_REAL;
 			m.dx=1, m.dy=1;
 			DALLOC(m.data, 1);
@@ -577,16 +587,19 @@ bool		r_unary(Matrix &m, bool space_sensitive)
 			return r_postfix(m, space_sensitive);
 #endif
 		case T_MINUS:
+			m.name=nullptr;
 			if(!r_unary(m, space_sensitive))
 				return false;
 			for(int k=0, size=m.dx*m.dy*(1+(m.type==T_COMPLEX));k<size;++k)
 				m.data[k]=-m.data[k];
 			return r_postfix(m, space_sensitive);
 		case T_PLUS:
+			m.name=nullptr;
 			if(!r_unary(m, space_sensitive))
 				return false;
 			return r_postfix(m, space_sensitive);
 		case T_LPR:
+			m.name=nullptr;
 			if(!r_assign_expr(m, false))
 				return false;
 			if(lex_get(false)!=T_RPR)
@@ -594,6 +607,7 @@ bool		r_unary(Matrix &m, bool space_sensitive)
 			return r_postfix(m, space_sensitive);
 		case T_LBRACKET:
 			{
+				m.name=nullptr;
 				if(!r_row_vector(m))
 					return false;
 				for(;;)
@@ -664,14 +678,17 @@ bool		r_multiplicative(Matrix &m, bool space_sensitive)
 		{
 		case T_MUL:
 			{
+				m.name=nullptr;
 				Matrix m2;
 				if(!r_unary(m2, space_sensitive))
 					return false;
-				obj_mul(m, m2, idx0);
+				if(!obj_mul(m, m2, idx0))
+					return false;
 			}
 			continue;
 		case T_TENSOR:
 			{
+				m.name=nullptr;
 				Matrix m2;
 				if(!r_unary(m2, space_sensitive))
 					return false;
@@ -686,14 +703,17 @@ bool		r_multiplicative(Matrix &m, bool space_sensitive)
 			continue;
 		case T_DIV:
 			{
+				m.name=nullptr;
 				Matrix m2;
 				if(!r_unary(m2, space_sensitive))
 					return false;
-				obj_div(m, m2, idx0);
+				if(!obj_div(m, m2, idx0))
+					return false;
 			}
 			continue;
 		case T_DIV_BACK:
 			{
+				m.name=nullptr;
 				Matrix m2;
 				if(!r_unary(m2, space_sensitive))
 					return false;
@@ -721,14 +741,17 @@ bool		r_multiplicative(Matrix &m, bool space_sensitive)
 			continue;
 		case T_MOD:
 			{
+				m.name=nullptr;
 				Matrix m2;
 				if(!r_unary(m2, space_sensitive))
 					return false;
-				obj_mod(m, m2, idx0);
+				if(!obj_mod(m, m2, idx0))
+					return false;
 			}
 			continue;
 		case T_MUL_EW:
 			{
+				m.name=nullptr;
 				Matrix m2;
 				if(!r_unary(m2, space_sensitive))
 					return false;
@@ -754,6 +777,7 @@ bool		r_multiplicative(Matrix &m, bool space_sensitive)
 			continue;
 		case T_DIV_EW:
 			{
+				m.name=nullptr;
 				Matrix m2;
 				if(!r_unary(m2, space_sensitive))
 					return false;
@@ -777,10 +801,8 @@ bool		r_multiplicative(Matrix &m, bool space_sensitive)
 				}
 			}
 			continue;
-		default:
-			idx=idx0;
-			break;
 		}
+		idx=idx0;
 		break;
 	}
 	return true;
@@ -796,6 +818,7 @@ bool		r_additive(Matrix &m, bool space_sensitive)
 		{
 		case T_PLUS:
 			{
+				m.name=nullptr;
 				Matrix m2;
 				if(!r_multiplicative(m2, space_sensitive))
 					return false;
@@ -804,16 +827,15 @@ bool		r_additive(Matrix &m, bool space_sensitive)
 			continue;
 		case T_MINUS:
 			{
+				m.name=nullptr;
 				Matrix m2;
 				if(!r_multiplicative(m2, space_sensitive))
 					return false;
 				obj_sub(m, m2, idx0);
 			}
 			continue;
-		default:
-			idx=idx0;
-			break;
 		}
+		idx=idx0;
 		break;
 	}
 	return true;
@@ -829,6 +851,7 @@ bool		r_relational(Matrix &m, bool space_sensitive)
 		{
 		case T_LESS:
 			{
+				m.name=nullptr;
 				Matrix m2;
 				if(!r_multiplicative(m2, space_sensitive))
 					return false;
@@ -840,6 +863,7 @@ bool		r_relational(Matrix &m, bool space_sensitive)
 			continue;
 		case T_LESS_EQUAL:
 			{
+				m.name=nullptr;
 				Matrix m2;
 				if(!r_multiplicative(m2, space_sensitive))
 					return false;
@@ -851,6 +875,7 @@ bool		r_relational(Matrix &m, bool space_sensitive)
 			continue;
 		case T_GREATER:
 			{
+				m.name=nullptr;
 				Matrix m2;
 				if(!r_multiplicative(m2, space_sensitive))
 					return false;
@@ -862,6 +887,7 @@ bool		r_relational(Matrix &m, bool space_sensitive)
 			continue;
 		case T_GREATER_EQUAL:
 			{
+				m.name=nullptr;
 				Matrix m2;
 				if(!r_multiplicative(m2, space_sensitive))
 					return false;
@@ -871,10 +897,8 @@ bool		r_relational(Matrix &m, bool space_sensitive)
 					m.data[k]=m.data[k]>=m2.data[k];
 			}
 			continue;
-		default:
-			idx=idx0;
-			break;
 		}
+		idx=idx0;
 		break;
 	}
 	return true;
@@ -891,6 +915,7 @@ bool		r_equality(Matrix &m, bool space_sensitive)
 		case T_EQUAL:
 		case T_NOT_EQUAL:
 			{
+				m.name=nullptr;
 				Matrix m2;
 				if(!r_relational(m2, space_sensitive))
 					return false;
@@ -913,10 +938,8 @@ bool		r_equality(Matrix &m, bool space_sensitive)
 				m.dy=1;
 			}
 			continue;
-		default:
-			idx=idx0;
-			break;
 		}
+		idx=idx0;
 		break;
 	}
 	return true;
