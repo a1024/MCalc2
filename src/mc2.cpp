@@ -154,7 +154,7 @@ int			main(int argc, const char **argv)
 
 	for(int result=SOLVE_OK;;)
 	{
-		while((result=solve(str, result==SOLVE_INCOMPLETE))==SOLVE_INCOMPLETE)
+		while((result=solve(str, result!=SOLVE_OK))==SOLVE_INCOMPLETE)
 		{
 			std::string str2;
 			get_str_interactive(str2, "...");

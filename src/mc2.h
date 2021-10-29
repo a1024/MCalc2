@@ -169,6 +169,8 @@ struct		Matrix//12+4 bytes
 			type=other.type;
 			dx=other.dx;
 			dy=other.dy;
+			if(data)
+				free(data);
 			int count=dx*dy;
 			DALLOC(data, dx*dy);
 			//data=(double*)malloc(bytesize);
@@ -187,6 +189,8 @@ struct		Matrix//12+4 bytes
 			type=other.type;
 			dx=other.dx;
 			dy=other.dy;
+			if(data)
+				free(data);
 			data=other.data;
 			name=other.name;
 			MEMZERO(Matrix, &other, 1);
@@ -239,6 +243,21 @@ struct		Matrix//12+4 bytes
 		data=nullptr;
 		name=nullptr;
 	}
+	void move2temp(Matrix &m)//to be used on temp matrices (eg: 2*x, x looses its name)
+	{
+		if(this!=&m)
+		{
+			type=m.type;
+			dx=m.dx;
+			dy=m.dy;
+			if(data)
+				free(data);
+			data=m.data;
+			name=nullptr;
+			MEMZERO(Matrix, &m, 1);
+		}
+	}
+	//void setmemzero(){MEMZERO(Matrix, this, 1);}//only use at move operation
 };
 void		print_help();
 bool		get_str_from_file(std::string &str);

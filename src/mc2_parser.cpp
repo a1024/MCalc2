@@ -17,8 +17,34 @@
 #include	"mc2.h"
 #include	<stdarg.h>
 #include	<map>
+#include	<math.h>
 static const char file[]=__FILE__;
-const double _e=exp(1.), _pi=acos(-1.);
+const double _e=exp(1.), _pi=acos(-1.), _torad=_pi/180, _todeg=180/_pi;
+//inline math
+inline double  cosd(double x){return cos(x*_torad);}
+inline double acosd(double x){return acos(x)*_todeg;}
+inline double  sec (double x){return 1/cos(x);}
+inline double asec (double x){return acos(1/x);}
+inline double  secd(double x){return 1/cos(x*_torad);}
+inline double asecd(double x){return acos(1/x)*_todeg;}
+inline double  sech(double x){return 1/cosh(x);}
+inline double asech(double x){return acosh(1/x);}
+inline double  sind(double x){return sin(x*_torad);}
+inline double asind(double x){return asin(x)*_todeg;}
+inline double  csc (double x){return 1/sin(x);}
+inline double acsc (double x){return asin(1/x);}
+inline double  cscd(double x){return 1/sin(x*_torad);}
+inline double acscd(double x){return asin(1/x)*_todeg;}
+inline double  csch(double x){return 1/sinh(x);}
+inline double acsch(double x){return asinh(1/x);}
+inline double  tand(double x){return tan(x*_torad);}
+inline double atand(double x){return atan(x)*_todeg;}
+inline double  cot (double x){return 1/tan(x);}
+inline double acot (double x){return atan(1/x);}
+inline double  cotd(double x){return 1/tan(x*_torad);}
+inline double acotd(double x){return atan(1/x)*_todeg;}
+inline double  coth(double x){return 1/tanh(x);}
+inline double acoth(double x){return atanh(1/x);}
 
 std::vector<Matrix> g_answers;
 std::map<char*, Matrix> g_vars;
@@ -171,6 +197,13 @@ bool		r_unary(Matrix &m, bool space_sensitive)
 		case T_DIAG:
 		case T_LU:
 		case T_TRACE:
+		case T_COS:case T_ACOS:case T_COSD:case T_ACOSD:case T_COSH:case T_ACOSH:
+		case T_SEC:case T_ASEC:case T_SECD:case T_ASECD:case T_SECH:case T_ASECH:
+		case T_SIN:case T_ASIN:case T_SIND:case T_ASIND:case T_SINH:case T_ASINH:
+		case T_CSC:case T_ACSC:case T_CSCD:case T_ACSCD:case T_CSCH:case T_ACSCH:
+		case T_TAN:case T_ATAN:case T_TAND:case T_ATAND:case T_TANH:case T_ATANH:
+		case T_COT:case T_ACOT:case T_COTD:case T_ACOTD:case T_COTH:case T_ACOTH:
+		case T_GAMMA:
 			if(lex_get(false)!=T_LPR)
 				return user_error2(idx0, idx, "Expected an opening parenthesis \'(\' of function call");
 			if(!r_assign_expr(m, false))
@@ -265,8 +298,49 @@ bool		r_unary(Matrix &m, bool space_sensitive)
 				m.dx=m.dy=1;
 				DREALLOC(m.data, m.data, m.dx*m.dy);
 				break;
+#define		EW_FUNC(FUNC)	for(int k=0, size=m.dx*m.dy;k<size;++k)m.data[k]=FUNC(m.data[k]);
+			case T_COS:		EW_FUNC(cos)break;
+			case T_ACOS:	EW_FUNC(acos)break;
+			case T_COSD:	EW_FUNC(cosd)break;
+			case T_ACOSD:	EW_FUNC(acosd)break;
+			case T_COSH:	EW_FUNC(cosh)break;
+			case T_ACOSH:	EW_FUNC(acosh)break;
+			case T_SEC:		EW_FUNC(sec)break;
+			case T_ASEC:	EW_FUNC(asec)break;
+			case T_SECD:	EW_FUNC(secd)break;
+			case T_ASECD:	EW_FUNC(asecd)break;
+			case T_SECH:	EW_FUNC(sech)break;
+			case T_ASECH:	EW_FUNC(asech)break;
+			case T_SIN:		EW_FUNC(sin)break;
+			case T_ASIN:	EW_FUNC(asin)break;
+			case T_SIND:	EW_FUNC(sind)break;
+			case T_ASIND:	EW_FUNC(asind)break;
+			case T_SINH:	EW_FUNC(sinh)break;
+			case T_ASINH:	EW_FUNC(asinh)break;
+			case T_CSC:		EW_FUNC(csc)break;
+			case T_ACSC:	EW_FUNC(acsc)break;
+			case T_CSCD:	EW_FUNC(cscd)break;
+			case T_ACSCD:	EW_FUNC(acscd)break;
+			case T_CSCH:	EW_FUNC(csch)break;
+			case T_ACSCH:	EW_FUNC(acsch)break;
+			case T_TAN:		EW_FUNC(tan)break;
+			case T_ATAN:	EW_FUNC(atan)break;
+			case T_TAND:	EW_FUNC(tand)break;
+			case T_ATAND:	EW_FUNC(atand)break;
+			case T_TANH:	EW_FUNC(tanh)break;
+			case T_ATANH:	EW_FUNC(atanh)break;
+			case T_COT:		EW_FUNC(cot)break;
+			case T_ACOT:	EW_FUNC(acot)break;
+			case T_COTD:	EW_FUNC(cotd)break;
+			case T_ACOTD:	EW_FUNC(acotd)break;
+			case T_COTH:	EW_FUNC(coth)break;
+			case T_ACOTH:	EW_FUNC(acoth)break;
+			case T_GAMMA:	EW_FUNC(tgamma)break;
+			case T_LNGAMMA:	EW_FUNC(lgamma)break;
+#undef		EW_FUNC
+				break;
 			}
-			break;
+			return r_postfix(m, space_sensitive);
 		case T_CMD:
 		case T_CONV:
 		case T_LDIV:
@@ -440,7 +514,13 @@ bool		r_unary(Matrix &m, bool space_sensitive)
 			}
 			return r_postfix(m, space_sensitive);
 		case T_ID://TODO: look up variable name
-			return false;
+			{
+				auto it=g_vars.find(lex_id);
+				if(it==g_vars.end())
+					return user_error2(idx0, idx, "Undefined");
+				m=it->second;
+			}
+			return r_postfix(m, space_sensitive);
 		default:
 			user_error2(idx0, idx, "Expected an expression");
 			idx=idx0;
@@ -464,14 +544,34 @@ bool		r_multiplicative(Matrix &m, bool space_sensitive)
 				Matrix m2;
 				if(!r_unary(m2, space_sensitive))
 					return false;
-				if(m.dx!=m2.dy)//dimension mismatch
-					return user_error2(idx0, idx, "Dimension mismatch in matrix multiplication: w1=%d != h2=%d", m.dx, m2.dy);
-				auto DALLOC(temp, m.dy*m2.dx);
-				//double *temp=(double*)malloc(m.dy*m2.dx*sizeof(double));
-				impl_matmul(temp, m.data, m2.data, m.dy, m.dx, m2.dx);
-				free(m.data);
-				m.data=temp;
-				m.dx=m2.dx;
+				if(m2.dx==1&&m2.dy==1)//multiplication by scalar
+				{
+					for(int k=0, size=m.dy*m.dx;k<size;++k)
+						m.data[k]*=m2.data[0];
+				}
+				else if(m.dx==1&&m.dy==1)//multiplication by scalar
+				{
+					for(int k=0, size=m2.dy*m2.dx;k<size;++k)
+						m2.data[k]*=m.data[0];
+					m.move2temp(m2);
+
+					//m=std::move(m2);
+
+					//free(m.data);
+					//m.data=m2.data;
+					//m.dx=m2.dx, m.dy=m2.dy;
+				}
+				else//matrix multiplication
+				{
+					if(m.dx!=m2.dy)//dimension mismatch
+						return user_error2(idx0, idx, "Dimension mismatch in matrix multiplication: w1=%d != h2=%d", m.dx, m2.dy);
+					auto DALLOC(temp, m.dy*m2.dx);
+					//double *temp=(double*)malloc(m.dy*m2.dx*sizeof(double));
+					impl_matmul(temp, m.data, m2.data, m.dy, m.dx, m2.dx);
+					free(m.data);
+					m.data=temp;
+					m.dx=m2.dx;
+				}
 			}
 			continue;
 		case T_TENSOR:
@@ -493,17 +593,25 @@ bool		r_multiplicative(Matrix &m, bool space_sensitive)
 				Matrix m2;
 				if(!r_unary(m2, space_sensitive))
 					return false;
-				if(m2.dx!=m2.dy)//denominator matrix must be square
-					return user_error2(idx0, idx, "Denominator matrix must be square: h2=%d != w2=%d", m2.dy, m2.dx);
-				if(m.dx!=m2.dy)//dimension mismatch
-					return user_error2(idx0, idx, "Dimension mismatch in matrix multiplication: w1=%d != h2=%d", m.dx, m2.dy);
-				REALLOC(double, m2.data, m2.data, m2.dx*m2.dy*2);
-				//m2.data=(double*)realloc(m2.data, m2.dx*m2.dy*2*sizeof(double));
-				auto DALLOC(temp, m.dx*m.dy);
-				//double *temp=(double*)malloc(m.dx*m.dy*sizeof(double));
-				impl_matdiv(temp, m.data, m2.data, m.dy, m2.dx);
-				free(m.data);
-				m.data=temp;
+				if(m2.dx==1&&m2.dy==1)//division by scalar
+				{
+					for(int k=0, size=m.dy*m.dx;k<size;++k)
+						m.data[k]/=m2.data[0];
+				}
+				else//matrix division
+				{
+					if(m2.dx!=m2.dy)//denominator matrix must be square
+						return user_error2(idx0, idx, "Denominator matrix must be square: h2=%d != w2=%d", m2.dy, m2.dx);
+					if(m.dx!=m2.dy)//dimension mismatch
+						return user_error2(idx0, idx, "Dimension mismatch in matrix multiplication: w1=%d != h2=%d", m.dx, m2.dy);
+					REALLOC(double, m2.data, m2.data, m2.dx*m2.dy*2);
+					//m2.data=(double*)realloc(m2.data, m2.dx*m2.dy*2*sizeof(double));
+					auto DALLOC(temp, m.dx*m.dy);
+					//double *temp=(double*)malloc(m.dx*m.dy*sizeof(double));
+					impl_matdiv(temp, m.data, m2.data, m.dy, m2.dx);
+					free(m.data);
+					m.data=temp;
+				}
 			}
 			continue;
 		case T_DIV_BACK:
@@ -511,17 +619,26 @@ bool		r_multiplicative(Matrix &m, bool space_sensitive)
 				Matrix m2;
 				if(!r_unary(m2, space_sensitive))
 					return false;
-				if(m.dx!=m.dy)//denominator matrix must be square
-					return user_error2(idx0, idx, "Denominator matrix must be square: h1=%d != w1=%d", m.dy, m.dx);
-				if(m.dx!=m2.dy)//dimension mismatch
-					return user_error2(idx0, idx, "Dimension mismatch in matrix multiplication: w1=%d != h2=%d", m.dx, m2.dy);
-				REALLOC(double, m.data, m.data, m2.dx*m2.dy);
-				//m.data=(double*)realloc(m.data, m.dx*m.dy*2*sizeof(double));
-				auto DALLOC(temp, m2.dx*m2.dy);
-				//double *temp=(double*)malloc(m2.dx*m2.dy*sizeof(double));
-				impl_matdiv_back(temp, m.data, m2.data, m.dy, m2.dx);
-				free(m.data);
-				m.data=temp;
+				if(m.dx==1&&m.dy==1)//multiplication by scalar
+				{
+					for(int k=0, size=m2.dy*m2.dx;k<size;++k)
+						m2.data[k]*=m.data[0];
+					m.move2temp(m2);
+				}
+				else//matrix division
+				{
+					if(m.dx!=m.dy)//denominator matrix must be square
+						return user_error2(idx0, idx, "Denominator matrix must be square: h1=%d != w1=%d", m.dy, m.dx);
+					if(m.dx!=m2.dy)//dimension mismatch
+						return user_error2(idx0, idx, "Dimension mismatch in matrix multiplication: w1=%d != h2=%d", m.dx, m2.dy);
+					REALLOC(double, m.data, m.data, m2.dx*m2.dy);
+					//m.data=(double*)realloc(m.data, m.dx*m.dy*2*sizeof(double));
+					auto DALLOC(temp, m2.dx*m2.dy);
+					//double *temp=(double*)malloc(m2.dx*m2.dy*sizeof(double));
+					impl_matdiv_back(temp, m.data, m2.data, m.dy, m2.dx);
+					free(m.data);
+					m.data=temp;
+				}
 			}
 			continue;
 		case T_MOD:
@@ -548,10 +665,16 @@ bool		r_multiplicative(Matrix &m, bool space_sensitive)
 				Matrix m2;
 				if(!r_unary(m2, space_sensitive))
 					return false;
-				if(m2.dx==1&&m2.dy==1)//m2 can be scalar
+				if(m2.dx==1&&m2.dy==1)//multiplication by scalar
 				{
-					for(int k=0, size=m.dx*m.dy;k<size;++k)
+					for(int k=0, size=m.dy*m.dx;k<size;++k)
 						m.data[k]*=m2.data[0];
+				}
+				else if(m.dx==1&&m.dy==1)//multiplication by scalar
+				{
+					for(int k=0, size=m2.dy*m2.dx;k<size;++k)
+						m2.data[k]*=m.data[0];
+					m.move2temp(m2);
 				}
 				else
 				{
@@ -567,10 +690,16 @@ bool		r_multiplicative(Matrix &m, bool space_sensitive)
 				Matrix m2;
 				if(!r_unary(m2, space_sensitive))
 					return false;
-				if(m2.dx==1&&m2.dy==1)//m2 can be scalar
+				if(m2.dx==1&&m2.dy==1)//division by scalar
 				{
-					for(int k=0, size=m.dx*m.dy;k<size;++k)
+					for(int k=0, size=m.dy*m.dx;k<size;++k)
 						m.data[k]/=m2.data[0];
+				}
+				else if(m.dx==1&&m.dy==1)//element-wise division of scalar by matrix
+				{
+					for(int k=0, size=m2.dy*m2.dx;k<size;++k)
+						m2.data[k]=m.data[0]/m2.data[k];
+					m.move2temp(m2);
 				}
 				else
 				{
@@ -786,11 +915,14 @@ int			solve(std::string &str, bool again)
 		ret=SOLVE_OK_NO_ANS;
 		break;
 	case T_VARS:
-		printf("Variables:\n");
-		for(auto &var:g_vars)
+		if(g_vars.size())
 		{
-			printf("%s =\n", var.first);
-			var.second.print();
+			printf("Variables:\n");
+			for(auto &var:g_vars)
+			{
+				printf("%s =\n", var.first);
+				var.second.print();
+			}
 		}
 		printf("Previous answers:\n");
 		for(int k=0;k<(int)g_answers.size()-1;++k)
