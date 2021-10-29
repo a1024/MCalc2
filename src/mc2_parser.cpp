@@ -35,6 +35,10 @@ bool		user_error(const char *format, ...)
 bool		user_error2(int start, int end, const char *format, ...)
 {
 	int printed=0;
+	if(start>=end)
+		end=start+4;
+	if(end>text_size)
+		end=text_size;
 	if(start<end)
 		printed=sprintf_s(g_buf, g_buf_size, "Error: \'%.*s\' ", end-start, text+start);
 	else
@@ -206,16 +210,17 @@ inline bool	obj_mod(Matrix &m, Matrix &m2, int idx0)
 int			parse_incomplete=false;
 
 //precedence (first to last):
-//	function call		f(a)
-//	transpose			a'			< these two are swapped, but it doesn't matter, or does it?
-//	signs				-a	+a		<
+//	calls & brackets	f(a)	(a)		[a]
+//	postfix & power		a'		a[b]	a^b
+//	prefix				-a		+a
 //	multicplicative		a*b		a o b	a/b		a\b		a%b		a.*b	a./b
 //	additive			a+b		a-b
 //	relational			a<b		a<=b	a>b		a>=b
 //	equality			a==b	a!=b
-//	assignment			a=b
+//	assignment			a=b		a+=b	a-=b	a*=b	a/=b	a%=b
 
 //parser declarations
+bool		r_unary(Matrix &m, bool space_sensitive);
 bool		r_equality(Matrix &m, bool space_sensitive);
 bool		r_assign_expr(Matrix &m, bool space_sensitive);
 
@@ -320,6 +325,26 @@ bool		r_postfix(Matrix &m, bool space_sensitive)//pre-allocated
 					m.dx=1;
 				}
 				DREALLOC(m.data, m.data, m.dx*m.dy);
+			}
+			continue;
+		case T_POWER:
+			{
+				Matrix m2;
+				if(!r_unary(m2, space_sensitive))
+					return false;
+				if(m.dx!=m.dy)
+					return user_error2(idx0, idx, "Expected a square matrix");
+				if(m2.dx==1&&m2.dy==1)
+				{
+					int e=(int)floor(m2.data[0]+0.5);
+					auto DALLOC(temp, m.dx*m.dy);
+					DREALLOC(m.data, m.data, m.dx*m.dy*2);
+					impl_matpow(temp, m.data, e, m.dx);
+					free(m.data);
+					m.data=temp;
+				}
+				else//TODO: matrix power matrix
+					return my_error(idx0, idx);
 			}
 			continue;
 		}
@@ -618,9 +643,11 @@ bool		r_unary(Matrix &m, bool space_sensitive)
 			m.name=nullptr;
 			if(!r_unary(m, space_sensitive))
 				return false;
+			if(!r_postfix(m, space_sensitive))
+				return false;
 			for(int k=0, size=m.dx*m.dy*(1+(m.type==T_COMPLEX));k<size;++k)
 				m.data[k]=-m.data[k];
-			return r_postfix(m, space_sensitive);
+			return true;
 		case T_PLUS:
 			m.name=nullptr;
 			if(!r_unary(m, space_sensitive))
@@ -1115,6 +1142,7 @@ int			solve(std::string &str, bool again)
 				ret=SOLVE_PARSE_ERROR;
 				break;
 			}
+			idx0=idx;
 			switch(lex_get(false))
 			{
 			case T_SEMICOLON:
@@ -1122,6 +1150,7 @@ int			solve(std::string &str, bool again)
 			case T_EOF:
 				break;
 			default:
+				user_error2(idx0, idx, "Unexpected text");
 				ret=SOLVE_PARSE_ERROR;
 				break;
 			}

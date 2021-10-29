@@ -284,9 +284,7 @@ void		impl_rref(double *m, short dx, short dy)
 					for(kx=it;kx<dx;++kx)
 						m[dx*ky+kx]-=coeff*m[dx*it+kx];
 				}
-#if 1
-				print_matrix_debug(m, dx, dy);
-#endif
+				//print_matrix_debug(m, dx, dy);
 			}
 		}
 	}
@@ -390,7 +388,10 @@ void		impl_matpow(double *dst, double *m1, int e, int dx)//dst: dx*dx,  m1: dx*(
 	double *temp=m1+size;
 
 	if(e<0)//negative exponent
+	{
+		e=-e;
 		impl_matinv(m1, dx);
+	}
 	//memcpy(x, m1, size*sizeof(double));
 
 	DMEMZERO(dst, size);
