@@ -248,8 +248,10 @@ char			acme_read_number(const char *text, int size, int k, int *advance, long lo
 			isfloat=acme_read_number_pt2(text, size, 8, 1./8, k+1, advance, ival, fval);
 		else if(text[k+1]=='.')//dec	//eg: "0.1"
 			isfloat=acme_read_number_pt2(text, size, 10, 1./10, k, advance, ival, fval);
-		else
+		else if(text[k+1]>='8'&&text[k+1]<='9')
 			isfloat=2;
+		else//it's a zero
+			isfloat=0, *advance=1;
 	}
 	else//dec
 		isfloat=acme_read_number_pt2(text, size, 10, 1./10, k, advance, ival, fval);

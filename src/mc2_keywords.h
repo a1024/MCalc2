@@ -27,6 +27,9 @@ TOKEN("+", T_PLUS) TOKEN("-", T_MINUS)//can be unary		binary: if one is scalar t
 //TOKEN(".+", T_ADD_EW) TOKEN(".-", T_SUB_EW)//scalar-matrix element-wise additions
 TOKEN("<", T_LESS) TOKEN("<=", T_LESS_EQUAL) TOKEN(">", T_GREATER) TOKEN(">=", T_GREATER_EQUAL)
 TOKEN("==", T_EQUAL) TOKEN("!=", T_NOT_EQUAL)
+
+TOKEN("+=", T_ASSIGN_ADD) TOKEN("-=", T_ASSIGN_SUB)
+TOKEN("*=", T_ASSIGN_MUL) TOKEN("/=", T_ASSIGN_DIV) TOKEN("%=", T_ASSIGN_MOD)
 TOKEN("=", T_ASSIGN)
 
 //control
