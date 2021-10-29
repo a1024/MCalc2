@@ -822,7 +822,8 @@ bool		r_additive(Matrix &m, bool space_sensitive)
 				Matrix m2;
 				if(!r_multiplicative(m2, space_sensitive))
 					return false;
-				obj_add(m, m2, idx0);
+				if(!obj_add(m, m2, idx0))
+					return false;
 			}
 			continue;
 		case T_MINUS:
@@ -831,7 +832,8 @@ bool		r_additive(Matrix &m, bool space_sensitive)
 				Matrix m2;
 				if(!r_multiplicative(m2, space_sensitive))
 					return false;
-				obj_sub(m, m2, idx0);
+				if(!obj_sub(m, m2, idx0))
+					return false;
 			}
 			continue;
 		}
@@ -1011,7 +1013,7 @@ int			solve(std::string &str, bool again)
 
 	lex_init(str.c_str(), str.size()-nspaces);
 	parse_incomplete=false;
-	if(!again)
+	if(!g_answers.size()||!again&&g_answers.back().type!=T_IGNORED)
 		g_answers.push_back(Matrix());
 	auto &m=g_answers.back();
 	SolveResultType ret=SOLVE_OK;
@@ -1040,21 +1042,31 @@ int			solve(std::string &str, bool again)
 		ret=SOLVE_OK_NO_ANS;
 		break;
 	case T_VARS:
-		if(g_vars.size())
 		{
-			printf("Variables:\n");
-			for(auto &var:g_vars)
+			bool printed=false;
+			if(g_vars.size())
 			{
-				printf("%s =\n", var.first);
-				var.second.print();
+				printf("Variables:\n");
+				for(auto &var:g_vars)
+				{
+					printf("%s =\n", var.first);
+					var.second.print();
+				}
+				printed=true;
 			}
-		}
-		printf("Previous answers:\n");
-		for(int k=0;k<(int)g_answers.size()-1;++k)
-		{
-			auto &ans=g_answers[k];
-			printf("ans(%d) =\n", k);
-			ans.print();
+			if(g_answers.size()-1>0)
+			{
+				printf("Previous answers:\n");
+				for(int k=0;k<(int)g_answers.size()-1;++k)
+				{
+					auto &ans=g_answers[k];
+					printf("ans(%d) =\n", k);
+					ans.print();
+				}
+				printed=true;
+			}
+			if(!printed)
+				printf("Nothing to show\n");
 		}
 		ret=SOLVE_OK_NO_ANS;
 		break;
@@ -1075,6 +1087,26 @@ int			solve(std::string &str, bool again)
 				ret=SOLVE_PARSE_ERROR;
 				break;
 			}
+			switch(lex_get(false))
+			{
+			case T_SEMICOLON:
+				continue;
+			case T_EOF:
+				break;
+			default:
+				ret=SOLVE_PARSE_ERROR;
+				break;
+			}
+			break;
+			//if(idx<text_size)
+			//{
+			//	auto t=lex_get(false);
+			//	if(t!=T_SEMICOLON&&t!=T_EOF)
+			//	{
+			//		ret=SOLVE_PARSE_ERROR;
+			//		break;
+			//	}
+			//}
 		}
 		break;
 	}

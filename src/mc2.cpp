@@ -168,7 +168,10 @@ int			main(int argc, const char **argv)
 			printf("\n");
 		}
 		else if(result==SOLVE_OK_NO_ANS)//success, but don't print answer
-			g_answers.pop_back();
+		{
+			//if(g_answers.size())//clear command clears answers
+			//	g_answers.pop_back();
+		}
 		else//success, print answer
 		{
 			auto &ans=g_answers.back();
