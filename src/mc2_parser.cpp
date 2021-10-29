@@ -292,10 +292,38 @@ bool		r_postfix(Matrix &m, bool space_sensitive)//pre-allocated
 				m.name=nullptr;
 			}
 			continue;
-		default:
-			idx=idx0;
-			break;
+		case T_LBRACKET:
+			{
+				Matrix m2;
+				if(!r_assign_expr(m2, false))
+					return false;
+				if(lex_get(space_sensitive)!=T_RBRACKET)
+					return user_error2(idx0, idx, "Expected a closing bracket \']\'");
+				if(m2.dx!=1||m2.dy!=1)
+					return user_error2(idx0, idx, "Expected a scalar");
+				int a_idx=(int)floor(m2.data[0]+0.5);
+				if(a_idx<0)
+					a_idx=0;
+				if(m.dy>1)//select row
+				{
+					if(a_idx>=m.dy)//TODO: out-of-bounds error?
+						a_idx=m.dy-1;
+					if(a_idx)
+						DMEMCPY(m.data, m.data+m.dx*a_idx, m.dx);
+					m.dy=1;
+				}
+				else//select column
+				{
+					if(a_idx>=m.dx)
+						a_idx=m.dx-1;
+					m.data[0]=m.data[a_idx];
+					m.dx=1;
+				}
+				DREALLOC(m.data, m.data, m.dx*m.dy);
+			}
+			continue;
 		}
+		idx=idx0;
 		break;
 	}
 	return true;
@@ -346,7 +374,7 @@ bool		r_unary(Matrix &m, bool space_sensitive)
 					if(a_idx<0)
 						a_idx=0;
 					if(a_idx>=(int)g_answers.size())
-						a_idx=g_answers.size();
+						a_idx=g_answers.size()-1;
 					m=g_answers[a_idx];
 				}
 				break;
