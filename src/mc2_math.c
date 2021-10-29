@@ -262,7 +262,7 @@ void		impl_rref(double *m, short dx, short dy)
 		for(ky=it;ky<dy;++ky)//find pivot
 		{
 			pivot=m[dx*ky+it];
-			if(pivot)
+			if(abs(pivot)>1e-10)
 				break;
 		}
 		if(ky<dy)
@@ -284,6 +284,9 @@ void		impl_rref(double *m, short dx, short dy)
 					for(kx=it;kx<dx;++kx)
 						m[dx*ky+kx]-=coeff*m[dx*it+kx];
 				}
+#if 1
+				print_matrix_debug(m, dx, dy);
+#endif
 			}
 		}
 	}

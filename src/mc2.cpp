@@ -61,34 +61,33 @@ void		print_help()
 		"  help: Print this info (works in cmd)\n"
 		"  clear: Clears all variables from memory\n"
 		"  vars: Shows all variables & answer count\n"
-	//	"  open: Choose a text file to open\n"//TODO
+		"  open: Choose a text file to open\n"
 		"General functions:\n"
 		"  ans(n): The n-th latest answer\n"
+		"  cmd(w, h): set console buffer size (in characters)\n"
 		"Vectors:\n"
 		"  cross(3D vec, 3D vec) -> 3D vec\n"
 		"  cross(2D vec, 2D vec) -> scalar\n"
+		"  For dot product use transpose (col\'*col or row*row\')\n"
 		"Matrices:\n"
-	//	"  join: \n"//X flatten NESTED MATRICES
 		"  ref: Row Echelon Form\n"
 		"  rref: Reduced Row Echelon Form (Gaussian Elimination)\n"
 		"Square matrices:\n"
-		"  I n: n-square identity matrix\n"//autosize?
+		"  I(n): n-square identity matrix\n"//autosize?
 		"  det: determinant of square matrix\n"
 		"  inv: inverse of square matrix\n"
-		"  diag: diagonal factorization of square matrix\n"
-		"  lu: LU factorization of square matrix\n"
+	//	"  diag: diagonal factorization of square matrix\n"//TODO
+	//	"  lu: LU factorization of square matrix\n"
 		"  tr: trace of square matrix\n"
 	//	"Polynomials:\n"
 	//	"  roots: find the roots\n"
-		"Fraction objects:\n"
-		"  sample(F): s to z domain\n"
-		"  ldiv(F, S): long division of fraction F by S steps\n"
+	//	"Fraction objects:\n"
+	//	"  sample(F): s to z domain\n"
+	//	"  ldiv(F, S): long division of fraction F by S steps\n"
 	//	"  plot(F, S): long division\n"
 	//	"Matrices & polynomials:\n"
 	//	"  dft/fft: Discrete Fourier Transform\n"
 	//	"  idft/ifft: Inverse Discrete Fourier Transform\n"
-		"Utility:\n"
-		"  cmd(w, h): set console buffer size (in characters)\n"
 		"\n"
 		);
 }
@@ -120,6 +119,7 @@ bool		get_str_from_file(std::string &str)
 	str.resize(bytesize);
 	fread(&str[0], 1, bytesize, file);
 	fclose(file);
+	str.resize(strlen(str.c_str()));//remove extra null terminators at the end
 	return true;
 }
 int			main(int argc, const char **argv)
@@ -162,14 +162,21 @@ int			main(int argc, const char **argv)
 		}
 		if(result==SOLVE_PARSE_ERROR)
 		{
-			printf("Syntax error :^)\n");//TODO: print all syntax errors
+			printf("\n");
+			for(int k=0;k<(int)errors.size();++k)
+				printf("%s\n", errors[k].c_str());
+			printf("\n");
 		}
-		else if(result==SOLVE_OK_NO_ANS)
+		else if(result==SOLVE_OK_NO_ANS)//success, but don't print answer
 			g_answers.pop_back();
-		else
+		else//success, print answer
 		{
-			printf("ans(%d) =\n", g_answers.size()-1);
-			g_answers.back().print();
+			auto &ans=g_answers.back();
+			if(ans.name)
+				printf("%s =\n", ans.name);
+			else
+				printf("ans(%d) =\n", g_answers.size()-1);
+			ans.print();
 		}
 
 		get_str_interactive(str, 0);

@@ -198,7 +198,7 @@ struct		Matrix//12+4 bytes
 	{
 		if(!data)
 		{
-			printf("Error: data == nullptr\n");
+			printf("Error: matrix.data == nullptr\n");
 			return;
 		}
 		//if(name)
@@ -240,8 +240,6 @@ struct		Matrix//12+4 bytes
 		name=nullptr;
 	}
 };
-extern std::vector<Matrix> g_answers;
-extern std::map<char*, Matrix> g_vars;
 void		print_help();
 bool		get_str_from_file(std::string &str);
 
@@ -253,8 +251,9 @@ extern int			text_size, idx;
 extern const char	*text;//
 extern const char	*keywords[T_NTOKENS+1];
 void		lex_init(const char *str, int len);
-TokenType	lex_get();
-TokenType	lex_look_ahead(int k);
+int			lex_skip_space();
+TokenType	lex_get(bool space_sensitive);//space-sensitive: true: you need the leading space/newline token (before an actual token), false: space is ignored
+TokenType	lex_look_ahead(int k, bool space_sensitive);
 
 
 //mc2_parser.cpp
@@ -265,5 +264,10 @@ enum		SolveResultType
 	SOLVE_INCOMPLETE,
 	SOLVE_PARSE_ERROR,
 };
+extern std::vector<Matrix> g_answers;
+extern std::map<char*, Matrix> g_vars;
+extern std::vector<std::string> errors;
 int			solve(std::string &str, bool again);
+bool		user_error(const char *format, ...);//full description and punctuation
+bool		user_error2(int start, int end, const char *format, ...);//refer in text where the error happened, a period '.' is appended to each error
 #endif

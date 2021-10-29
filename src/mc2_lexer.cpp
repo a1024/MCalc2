@@ -256,9 +256,15 @@ char			acme_read_number(const char *text, int size, int k, int *advance, long lo
 	return isfloat;
 }
 
-TokenType	lex_get()
+int			lex_skip_space()
 {
-//again:
+	char newline=0;
+	for(;idx<text_size&&text[idx]&&(text[idx]==' '||text[idx]=='\t'||text[idx]=='\r'||text[idx]=='\n');newline|=text[idx]=='\r'||text[idx]=='\n', ++idx);
+	return newline;
+}
+TokenType	lex_get(bool space_sensitive)
+{
+again:
 	if(idx>=text_size)
 		return T_EOF;
 	auto &slot=slots[(byte)text[idx]];
@@ -278,6 +284,8 @@ TokenType	lex_get()
 				if(!opt.endswithnan||!(IN_RANGE('0', next, '9')|IN_RANGE('A', next, 'Z')|IN_RANGE('a', next, 'z')|(next=='_')))
 				{
 					idx+=opt.len;
+					//if(!space_sensitive)
+					//	skip_space();
 					return (TokenType)opt.token;
 				}
 			}
@@ -298,15 +306,19 @@ TokenType	lex_get()
 			else
 				lex_number=(double)ival;
 			idx+=advance;
+			//if(!space_sensitive)
+			//	skip_space();
 			return T_NUMBER;
 		}
 		break;
 	case ' ':case '\t'://whitespace
 	case '\r':case '\n':
 		{
-			char newline=0;
-			for(;idx<text_size&&text[idx]&&(text[idx]==' '||text[idx]=='\t'||text[idx]=='\r'||text[idx]=='\n');newline|=text[idx]=='\r'||text[idx]=='\n', ++idx);
-			return TokenType(T_SPACE+newline);
+			int newline=lex_skip_space();
+			if(space_sensitive)
+				return TokenType(T_SPACE+newline);
+			else
+				goto again;
 		}
 	default:
 		if(!is_idstart(text[idx]))
@@ -316,19 +328,25 @@ TokenType	lex_get()
 			int start=idx;
 			for(;idx<text_size&&text[idx]&&is_alphanumeric(text[idx]);++idx);
 			lex_id=strings.add(text+start, idx-start);
+			//if(!space_sensitive)
+			//	skip_space();
 			return T_ID;
 		}
 	}
 unrecognized:
-	printf("Error: unrecognized text at %d: \'%.*s\'\n", idx, idx+50>text_size?50:text_size-idx, text+idx);
+	user_error2(idx, idx+50<text_size?idx+50:text_size, "Unrecognized text");
+	//user_error("Error: unrecognized text at %d: \'%.*s\'\n", idx, idx+50<text_size?50:text_size-idx, text+idx);
+	//printf("Error: unrecognized text at %d: \'%.*s\'\n", idx, idx+50>text_size?50:text_size-idx, text+idx);
+	//if(!space_sensitive)
+	//	skip_space();
 	return T_IGNORED;
 }
-TokenType	lex_look_ahead(int k)
+TokenType	lex_look_ahead(int k, bool space_sensitive)
 {
 	int idx0=idx;
 	TokenType type=T_IGNORED;
 	for(int k2=-1;k2<k;++k2)
-		type=lex_get();
+		type=lex_get(space_sensitive);
 	idx=idx0;
 	return type;
 }
