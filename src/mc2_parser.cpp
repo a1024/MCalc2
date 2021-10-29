@@ -84,21 +84,335 @@ inline double  cotd(double x){return 1/tan(x*_torad);}
 inline double acotd(double x){return atan(1/x)*_todeg;}
 inline double  coth(double x){return 1/tanh(x);}
 inline double acoth(double x){return atanh(1/x);}
+
+inline double c_distance(Comp const &a, Comp const &b)
+{
+	double r=a.r-b.r, i=a.i-b.i;
+	return r*r+i*i;
+}
+inline void c_mul_i(Comp &z)
+{
+	double temp=z.r;
+	z.r=-z.i, z.i=temp;
+}
+inline void c_mul_neg_i(Comp &z)
+{
+	double temp=z.r;
+	z.r=z.i, z.i=-temp;
+}
+inline void c_sq(Comp &z)
+{
+	double
+		r=z.r*z.r-z.i*z.i,
+		i=z.r*z.i;
+	z.r=r, z.i=i+i;
+}
+inline void	c_exp(Comp &z)
+{
+	double m=exp(z.r);
+	z.r=m*cos(z.r);
+	z.i=m*sin(z.i);
+}
+inline void	c_ln(Comp &z)
+{
+	double
+		r=log(sqrt(c_abs2(&z))),
+		i=atan2(z.i, z.r);
+	z.r=r, z.i=i;
+}
+inline void c_sqrt(Comp &z)//sqrt(z)=exp(0.5lnz)
+{
+	if(z.r||z.i)
+	{
+		c_ln(z);
+		z.r*=0.5, z.i*=0.5;
+		c_exp(z);
+	}
+}
+inline void	c_cos(Comp &z)
+{
+	Comp z2;
+	c_mul_i(z);
+	c_exp(z);
+	c_inv(&z2, &z);
+	z.r+=z2.r, z.i+=z2.i;
+	z.r*=0.5, z.i*=0.5;
+
+	//double
+	//	r=cos(z.r)*cosh(z.i),
+	//	i=-sin(z.r)*sinh(z.i);
+	//z.r=r, z.i=i;
+}
+inline void	c_acos(Comp &z)
+{
+	Comp z2=z;
+	c_sq(z);
+	z.r-=1;
+	c_sqrt(z);
+	z.r+=z2.r, z.i+=z2.i;
+	c_ln(z);
+	c_mul_neg_i(z);
+}
+inline void	c_cosd(Comp &z)
+{
+	z.r*=_torad, z.i*=_torad;
+	c_cos(z);
+}
+inline void	c_acosd(Comp &z)
+{
+	c_acos(z);
+	z.r*=_todeg, z.i*=_todeg;
+}
+inline void c_cosh(Comp &z)
+{
+	Comp z2;
+	c_exp(z);
+	c_inv(&z2, &z);
+	z.r+=z2.r, z.i+=z2.i;
+	z.r*=0.5, z.i*=0.5;
+}
+inline void	c_acosh(Comp &z)
+{
+	Comp z2=z;
+	c_sq(z);
+	z.r-=1;
+	c_sqrt(z);
+	z.r+=z2.r, z.i+=z2.i;
+	c_ln(z);
+}
+inline void c_sec(Comp &z)
+{
+	c_cos(z);
+	c_inv(&z, &z);
+}
+inline void c_asec(Comp &z)
+{
+	c_inv(&z, &z);
+	c_acos(z);
+}
+inline void c_secd(Comp &z)
+{
+	z.r*=_torad, z.i*=_torad;
+	c_sec(z);
+}
+inline void c_asecd(Comp &z)
+{
+	c_asec(z);
+	z.r*=_todeg, z.i*=_todeg;
+}
+inline void c_sech(Comp &z)
+{
+	c_cosh(z);
+	c_inv(&z, &z);
+}
+inline void c_asech(Comp &z)
+{
+	c_inv(&z, &z);
+	c_acosh(z);
+}
+inline void	c_sin(Comp &z)
+{
+	Comp z2;
+	c_mul_i(z);
+	c_exp(z);
+	c_inv(&z2, &z);
+	z.r-=z2.r, z.i-=z2.i;
+	z.r*=0.5, z.i*=0.5;
+}
+inline void	c_asin(Comp &z)
+{
+	Comp z2=z;
+	c_sq(z);
+	z.r=1-z.r, z.i=-z.i;
+	c_sqrt(z);
+	c_mul_i(z2);
+	z.r+=z2.r, z.i+=z2.i;
+	c_ln(z);
+	c_mul_neg_i(z);
+}
+inline void	c_sind(Comp &z)
+{
+	z.r*=_torad, z.i*=_torad;
+	c_sin(z);
+}
+inline void	c_asind(Comp &z)
+{
+	c_asin(z);
+	z.r*=_todeg, z.i*=_todeg;
+}
+inline void c_sinh(Comp &z)
+{
+	Comp z2;
+	c_exp(z);
+	c_inv(&z2, &z);
+	z.r-=z2.r, z.i-=z2.i;
+	z.r*=0.5, z.i*=0.5;
+}
+inline void	c_asinh(Comp &z)
+{
+	Comp z2=z;
+	c_sq(z);
+	z.r+=1;
+	c_sqrt(z);
+	z.r+=z2.r, z.i+=z2.i;
+	c_ln(z);
+}
+inline void c_csc(Comp &z)
+{
+	c_sin(z);
+	c_inv(&z, &z);
+}
+inline void c_acsc(Comp &z)
+{
+	c_inv(&z, &z);
+	c_asin(z);
+}
+inline void c_cscd(Comp &z)
+{
+	z.r*=_torad, z.i*=_torad;
+	c_csc(z);
+}
+inline void c_acscd(Comp &z)
+{
+	c_acsc(z);
+	z.r*=_todeg, z.i*=_todeg;
+}
+inline void c_csch(Comp &z)
+{
+	c_sinh(z);
+	c_inv(&z, &z);
+}
+inline void c_acsch(Comp &z)
+{
+	c_inv(&z, &z);
+	c_asinh(z);
+}
+inline void c_tan(Comp &z)
+{
+	c_mul_i(z);
+	z.r+=z.r, z.i+=z.i;
+	c_exp(z);
+	Comp z2=z;
+	z.r-=1, z2.r+=1;
+	c_div(&z, &z, &z2);
+}
+inline void c_atan(Comp &z)
+{
+	Comp z2=z;
+	z.i+=1;
+	z.r=-z.r, z.i=1-z.i;
+	c_div(&z, &z, &z2);
+	c_ln(z);
+	c_mul_i(z);
+	z.r*=0.5, z.i*=0.5;
+}
+inline void c_tand(Comp &z)
+{
+	z.r*=_torad, z.i*=_torad;
+	c_tan(z);
+}
+inline void c_atand(Comp &z)
+{
+	c_atan(z);
+	z.r*=_todeg, z.i*=_todeg;
+}
+inline void c_tanh(Comp &z)
+{
+	z.r+=z.r, z.i+=z.i;
+	c_exp(z);
+	Comp z2=z;
+	z.r-=1;
+	z2.r+=1;
+	c_div(&z, &z, &z2);
+}
+inline void c_atanh(Comp &z)
+{
+	Comp z2=z;
+	z.r+=1;
+	z.r=1-z.r, z.i=-z.i;
+	c_div(&z, &z, &z2);
+	c_ln(z);
+	z.r*=0.5, z.i*=0.5;
+}
+inline void c_cot(Comp &z)
+{
+	c_tan(z);
+	c_inv(&z, &z);
+}
+inline void c_acot(Comp &z)
+{
+	c_inv(&z, &z);
+	c_atan(z);
+}
+inline void c_cotd(Comp &z)
+{
+	z.r*=_torad, z.i*=_torad;
+	c_cot(z);
+}
+inline void c_acotd(Comp &z)
+{
+	c_acot(z);
+	z.r*=_todeg, z.i*=_todeg;
+}
+inline void c_coth(Comp &z)
+{
+	c_tan(z);
+	c_inv(&z, &z);
+}
+inline void c_acoth(Comp &z)
+{
+	c_inv(&z, &z);
+	c_atan(z);
+}
+inline bool	get_int(Matrix &m, int idx0, int &i)
+{
+	if(m.dx!=1||m.dy!=1)
+		return user_error2(idx0, idx, "Expected a scalar");
+	if(abs(m.data->i)>1e-10)
+		return user_error2(idx0, idx, "Expected a real value");
+	i=(int)floor(m.data->r+0.5);
+	return true;
+}
+inline void cmatrix_plus_cscalar(Matrix &m, Matrix &s)
+{
+	__m128d vb=_mm_load_pd((double*)s.data);
+	for(auto p=m.data, end=m.end();p<end;++p)
+	{
+		__m128d va=_mm_load_pd((double*)p);
+		va=_mm_add_pd(va, vb);
+		_mm_store_pd((double*)p, va);
+	}
+}
 inline bool	obj_add(Matrix &m, Matrix &m2, int idx0)
 {
 	if(m2.dy==1&&m2.dx==1)//addition of a scalar
 	{
-		for(int k=0, size=m.dy*m.dx;k<size;++k)
-			m.data[k]+=m2.data[0];
+		cmatrix_plus_cscalar(m, m2);
+		//__m128d vb=_mm_load_pd(m2.data);
+		//for(auto p=m.data, end=m.end();p<end;p+=2)
+		//{
+		//	__m128d va=_mm_load_pd(p);
+		//	va=_mm_add_pd(va, vb);
+		//	_mm_store_pd(p, va);
+		//}
+		//for(int k=0, size=m.dy*m.dx;k<size;++k)
+		//{
+		//	__m128d va=_mm_load_pd(m.data+(k<<1));
+		//	va=_mm_add_pd(va, vb);
+		//	_mm_store_pd(m.data+(k<<1), va);
+		//}
+		//for(int k=0, size=m.dy*m.dx;k<size;++k)
+		//{
+		//	m.data[(k<<1)  ]+=m2.data[0];
+		//	m.data[(k<<1)+1]+=m2.data[1];
+		//}
 	}
 	else if(m.dy==1&&m.dx==1)//addition of a scalar
 	{
-		for(int k=0, size=m2.dy*m2.dx;k<size;++k)
-			m2.data[k]+=m.data[0];
-		//if(m2_is_temp)
-			m.move2temp(m2);
-		//else
-		//	m=m2;
+		cmatrix_plus_cscalar(m2, m);
+		//for(int k=0, size=m2.dy*m2.dx;k<size;++k)
+		//	m2.data[k]+=m.data[0];
+		m.move2temp(m2);
 	}
 	else//matrix addition
 	{
@@ -113,16 +427,19 @@ inline bool	obj_sub(Matrix &m, Matrix &m2, int idx0)
 	if(m2.dy==1&&m2.dx==1)//subtraction of a scalar
 	{
 		for(int k=0, size=m.dy*m.dx;k<size;++k)
-			m.data[k]-=m2.data[0];
+		{
+			m.data[k].r-=m2.data->r;
+			m.data[k].i-=m2.data->i;
+		}
 	}
 	else if(m.dy==1&&m.dx==1)//scalar minus matrix
 	{
 		for(int k=0, size=m2.dy*m2.dx;k<size;++k)
-			m2.data[k]=m.data[0]-m2.data[k];
-		//if(m2_is_temp)
-			m.move2temp(m2);
-		//else
-		//	m=m2;
+		{
+			m2.data[k].r=m.data->r-m2.data[k].r;
+			m2.data[k].i=m.data->i-m2.data[k].i;
+		}
+		m.move2temp(m2);
 	}
 	else
 	{
@@ -137,31 +454,22 @@ inline bool	obj_mul(Matrix &m, Matrix &m2, int idx0)
 	if(m2.dx==1&&m2.dy==1)//multiplication by scalar
 	{
 		for(int k=0, size=m.dy*m.dx;k<size;++k)
-			m.data[k]*=m2.data[0];
+			c_mul(m.data+k, m.data+k, m2.data);
 	}
 	else if(m.dx==1&&m.dy==1)//multiplication by scalar
 	{
 		for(int k=0, size=m2.dy*m2.dx;k<size;++k)
-			m2.data[k]*=m.data[0];
-		//if(m2_is_temp)
-			m.move2temp(m2);
-		//else
-		//	m=m2;
-
-		//m=std::move(m2);
-
-		//free(m.data);
-		//m.data=m2.data;
-		//m.dx=m2.dx, m.dy=m2.dy;
+			c_mul(m2.data+k, m2.data+k, m.data);
+		m.move2temp(m2);
 	}
 	else//matrix multiplication
 	{
 		if(m.dx!=m2.dy)//dimension mismatch
 			return user_error2(idx0, idx, "Dimension mismatch in matrix multiplication: w1=%d != h2=%d", m.dx, m2.dy);
-		auto DALLOC(temp, m.dy*m2.dx);
+		auto CALLOC(temp, m.dy*m2.dx);
 		//double *temp=(double*)malloc(m.dy*m2.dx*sizeof(double));
 		impl_matmul(temp, m.data, m2.data, m.dy, m.dx, m2.dx);
-		free(m.data);
+		CFREE(m.data);
 		m.data=temp;
 		m.dx=m2.dx;
 	}
@@ -172,7 +480,7 @@ inline bool	obj_div(Matrix &m, Matrix &m2, int idx0)
 	if(m2.dx==1&&m2.dy==1)//division by scalar
 	{
 		for(int k=0, size=m.dy*m.dx;k<size;++k)
-			m.data[k]/=m2.data[0];
+			c_div(m.data+k, m.data+k, m2.data);
 	}
 	else//matrix division
 	{
@@ -180,12 +488,12 @@ inline bool	obj_div(Matrix &m, Matrix &m2, int idx0)
 			return user_error2(idx0, idx, "Denominator matrix must be square: h2=%d != w2=%d", m2.dy, m2.dx);
 		if(m.dx!=m2.dy)//dimension mismatch
 			return user_error2(idx0, idx, "Dimension mismatch in matrix multiplication: w1=%d != h2=%d", m.dx, m2.dy);
-		REALLOC(double, m2.data, m2.data, m2.dx*m2.dy*2);
+		CREALLOC(m2.data, m2.data, m2.dx*m2.dy);
 		//m2.data=(double*)realloc(m2.data, m2.dx*m2.dy*2*sizeof(double));
-		auto DALLOC(temp, m.dx*m.dy);
+		auto CALLOC(temp, m.dx*m.dy);
 		//double *temp=(double*)malloc(m.dx*m.dy*sizeof(double));
 		impl_matdiv(temp, m.data, m2.data, m.dy, m2.dx);
-		free(m.data);
+		CFREE(m.data);
 		m.data=temp;
 	}
 	return true;
@@ -195,14 +503,16 @@ inline bool	obj_mod(Matrix &m, Matrix &m2, int idx0)
 	if(m2.dx==1&&m2.dy==1)//m2 can be scalar
 	{
 		for(int k=0, size=m.dx*m.dy;k<size;++k)
-			m.data[k]=m.data[k]-floor(m.data[k]/m2.data[0])*m2.data[0];
+			c_mod(m.data+k, m.data+k, m2.data);
+			//m.data[k]=m.data[k]-floor(m.data[k]/m2.data[0])*m2.data[0];
 	}
 	else
 	{
 		if(m2.dx!=m.dx||m2.dy!=m.dy)
 			return user_error2(idx0, idx, "The modulus operator \'%%\' is element-wise: %dx%d != %dx%d", m.dy, m.dx, m2.dy, m2.dx);
 		for(int k=0, size=m.dx*m.dy;k<size;++k)
-			m.data[k]=m.data[k]-floor(m.data[k]/m2.data[k])*m2.data[k];
+			c_mod(m.data+k, m.data+k, m2.data+k);
+			//m.data[k]=m.data[k]-floor(m.data[k]/m2.data[k])*m2.data[k];
 	}
 	return true;
 }
@@ -255,13 +565,13 @@ bool		r_row_vector(Matrix &m)
 				if(m.dy!=m2.dy)
 					return user_error2(idx0, idx, "Matrices have different heights: h1=%d != h2=%d", m.dy, m2.dy);
 				int newdx=m.dx+m2.dx;
-				DREALLOC(m.data, m.data, newdx*m.dy);
+				CREALLOC(m.data, m.data, newdx*m.dy);
 				//m.data=(double*)realloc(m.data, newdx*m.dy*sizeof(double));
 				for(int ky=m.dy-1;ky>=0;--ky)
 				{
-					DMEMCPY(m.data+newdx*ky, m.data+m.dx*ky, m.dx);
+					CMEMCPY(m.data+newdx*ky, m.data+m.dx*ky, m.dx);
 					//memcpy(m.data+newdx*ky, m.data+m.dx*ky, m.dx*sizeof(double));
-					DMEMCPY(m.data+newdx*ky+m.dx, m2.data+m2.dx*ky, m2.dx);
+					CMEMCPY(m.data+newdx*ky+m.dx, m2.data+m2.dx*ky, m2.dx);
 					//memcpy(m.data+newdx*ky+m.dx, m2.data+m2.dx*ky, m2.dx*sizeof(double));
 				}
 				m.dx=newdx;
@@ -284,16 +594,26 @@ bool		r_postfix(Matrix &m, bool space_sensitive)//pre-allocated
 		case T_TRANSPOSE:
 			if(m.dx!=1||m.dy!=1)
 			{
-				double *data=m.data;
-				DALLOC(m.data, m.dx*m.dy);
-				//m.data=(double*)malloc(m.dx*m.dy*sizeof(double));
+				Comp *data=m.data;
+				CALLOC(m.data, m.dx*m.dy);
 				std::swap(m.dx, m.dy);
-				int ncomp=1+(m.type==T_COMPLEX);
 				for(int ky=0;ky<m.dy;++ky)
 					for(int kx=0;kx<m.dx;++kx)
-						for(int k=0;k<ncomp;++k)
-							m.data[ncomp*(m.dx*ky+kx)+k]=data[ncomp*(m.dy*kx+ky)+k];
-				free(data);
+						m.get(kx, ky)=GET(data, m.dy, ky, kx);
+				//for(int ky=0;ky<m.dy;++ky)
+				//{
+				//	for(int kx=0;kx<m.dx;++kx)
+				//	{
+				//		m.RDATA(m.dx, kx, ky)=RDATA(m.dy, ky, kx);
+				//		m.IDATA(m.dx, kx, ky)=IDATA(m.dy, ky, kx);
+				//	}
+				//}
+				//int ncomp=1+(m.type==T_COMPLEX);
+				//for(int ky=0;ky<m.dy;++ky)
+				//	for(int kx=0;kx<m.dx;++kx)
+				//		for(int k=0;k<ncomp;++k)
+				//			m.data[ncomp*(m.dx*ky+kx)+k]=data[ncomp*(m.dy*kx+ky)+k];
+				CFREE(data);
 				m.name=nullptr;
 			}
 			continue;
@@ -304,9 +624,12 @@ bool		r_postfix(Matrix &m, bool space_sensitive)//pre-allocated
 					return false;
 				if(lex_get(space_sensitive)!=T_RBRACKET)
 					return user_error2(idx0, idx, "Expected a closing bracket \']\'");
-				if(m2.dx!=1||m2.dy!=1)
-					return user_error2(idx0, idx, "Expected a scalar");
-				int a_idx=(int)floor(m2.data[0]+0.5);
+				int a_idx=0;
+				if(!get_int(m2, idx0, a_idx))
+					return false;
+				//if(m2.dx!=1||m2.dy!=1)
+				//	return user_error2(idx0, idx, "Expected a scalar");
+				//int a_idx=(int)floor(m2.data[0]+0.5);
 				if(a_idx<0)
 					a_idx=0;
 				if(m.dy>1)//select row
@@ -314,7 +637,7 @@ bool		r_postfix(Matrix &m, bool space_sensitive)//pre-allocated
 					if(a_idx>=m.dy)//TODO: out-of-bounds error?
 						a_idx=m.dy-1;
 					if(a_idx)
-						DMEMCPY(m.data, m.data+m.dx*a_idx, m.dx);
+						CMEMCPY(m.data, m.data+m.dx*a_idx, m.dx);
 					m.dy=1;
 				}
 				else//select column
@@ -324,7 +647,7 @@ bool		r_postfix(Matrix &m, bool space_sensitive)//pre-allocated
 					m.data[0]=m.data[a_idx];
 					m.dx=1;
 				}
-				DREALLOC(m.data, m.data, m.dx*m.dy);
+				CREALLOC(m.data, m.data, m.dx*m.dy);
 			}
 			continue;
 		case T_POWER:
@@ -336,11 +659,14 @@ bool		r_postfix(Matrix &m, bool space_sensitive)//pre-allocated
 					return user_error2(idx0, idx, "Expected a square matrix");
 				if(m2.dx==1&&m2.dy==1)
 				{
-					int e=(int)floor(m2.data[0]+0.5);
-					auto DALLOC(temp, m.dx*m.dy);
-					DREALLOC(m.data, m.data, m.dx*m.dy*2);
+					int e=0;
+					if(!get_int(m2, idx0, e))
+						return false;
+					//int e=(int)floor(m2.data[0]+0.5);
+					auto CALLOC(temp, m.dx*m.dy);
+					CREALLOC(m.data, m.data, m.dx*m.dy*2);
 					impl_matpow(temp, m.data, e, m.dx);
-					free(m.data);
+					CFREE(m.data);
 					m.data=temp;
 				}
 				else//TODO: matrix power matrix
@@ -393,9 +719,11 @@ bool		r_unary(Matrix &m, bool space_sensitive)
 			{
 			case T_ANS:
 				{
-					if(m.dx>1||m.dy>1)//expected a scalar
-						return user_error2(idx0, idx, "Expected a scalar");
-					int a_idx=(int)floor(m.data[0]+0.5);
+					int a_idx=0;
+					get_int(m, idx0, a_idx);
+					//if(m.dx>1||m.dy>1)//expected a scalar
+					//	return user_error2(idx0, idx, "Expected a scalar");
+					//int a_idx=(int)floor(m.data[0]+0.5);
 					if(a_idx<0)
 						a_idx=0;
 					if(a_idx>=(int)g_answers.size())
@@ -411,18 +739,19 @@ bool		r_unary(Matrix &m, bool space_sensitive)
 				return my_error(idx0, idx);
 			case T_IDEN:
 				{
-					if(m.dx>1||m.dy>1)//expected a scalar
-						return user_error2(idx0, idx, "Expected a scalar");
-					int a_idx=(int)floor(m.data[0]+0.5);
-					if(a_idx<1)//wrong size
+					int size=0;
+					get_int(m, idx0, size);
+					//if(m.dx>1||m.dy>1)//expected a scalar
+					//	return user_error2(idx0, idx, "Expected a scalar");
+					//int size=(int)floor(m.data[0]+0.5);
+					if(size<1)//wrong size
 						return user_error2(idx0, idx, "Wrong size of identity matrix");
-					m.dx=m.dy=a_idx;
-					a_idx*=a_idx;
-					DALLOC(m.data, a_idx);
-					//m.data=(double*)malloc(a_idx*sizeof(double));
-					memset(m.data, 0, a_idx*sizeof(double));
-					for(int k=0;k<a_idx;k+=m.dx+1)
-						m.data[k]=1;
+					m.dx=m.dy=size;
+					size*=size;
+					CALLOC(m.data, size);
+					memset(m.data, 0, size*sizeof(double));
+					for(int k=0;k<size;k+=m.dx+1)
+						m.data[k].r=1;
 				}
 				break;
 			case T_SUM://should work like in Matlab
@@ -430,17 +759,23 @@ bool		r_unary(Matrix &m, bool space_sensitive)
 					if(m.dy==1)
 					{
 						for(int kx=1;kx<m.dx;++kx)
-							m.data[0]+=m.data[kx];
+						{
+							m.data[0].r+=m.data[kx].r;//SIMD
+							m.data[0].i+=m.data[kx].i;
+						}
 						m.dx=1;
 					}
 					else
 					{
 						for(int ky=1;ky<m.dy;++ky)
 							for(int kx=0;kx<m.dx;++kx)
-								m.data[kx]+=m.data[m.dx*ky+kx];
+							{
+								m.data[kx].r+=m.data[m.dx*ky+kx].r;
+								m.data[kx].i+=m.data[m.dx*ky+kx].i;
+							}
 						m.dy=1;
 					}
-					DREALLOC(m.data, m.data, m.dy*m.dx);
+					CREALLOC(m.data, m.data, m.dy*m.dx);
 					//m.data=(double*)realloc(m.data, m.dy*m.dx*sizeof(double));
 				}
 				break;
@@ -453,18 +788,18 @@ bool		r_unary(Matrix &m, bool space_sensitive)
 			case T_DET:
 				if(m.dx!=m.dy)//must be square
 					return user_error2(idx0, idx, "Expected a square matrix");
-				DREALLOC(m.data, m.data, m.dx*m.dy*2);
+				CREALLOC(m.data, m.data, m.dx*m.dy*2);
 				//m.data=(double*)realloc(m.dx*m.dy*sizeof(double));
 				impl_det(m.data, m.dx);
 				m.dx=m.dy=1;
-				DREALLOC(m.data, m.data, m.dx*m.dy);
+				CREALLOC(m.data, m.data, m.dx*m.dy);
 				break;
 			case T_INV:
 				if(m.dy!=m.dx)
 					return user_error2(idx0, idx, "Expected a square matrix");
-				DREALLOC(m.data, m.data, m.dx*m.dy*2);
+				CREALLOC(m.data, m.data, m.dx*m.dy*2);
 				impl_matinv(m.data, m.dx);
-				DREALLOC(m.data, m.data, m.dx*m.dy);
+				CREALLOC(m.data, m.data, m.dx*m.dy);
 				break;
 			case T_DIAG://TODO
 			case T_LU:
@@ -473,49 +808,54 @@ bool		r_unary(Matrix &m, bool space_sensitive)
 				if(m.dy!=m.dx)
 					return user_error2(idx0, idx, "Expected a square matrix");
 				for(int k=1;k<m.dx;++k)
-					m.data[0]+=m.data[(m.dx+1)*k];
+				{
+					m.data[0].r+=m.data[(m.dx+1)*k].r;
+					m.data[0].i+=m.data[(m.dx+1)*k].i;
+				}
 				m.dx=m.dy=1;
-				DREALLOC(m.data, m.data, m.dx*m.dy);
+				CREALLOC(m.data, m.data, m.dx*m.dy);
 				break;
-#define		EW_FUNC(FUNC)	for(int k=0, size=m.dx*m.dy;k<size;++k)m.data[k]=FUNC(m.data[k]);
-			case T_COS:		EW_FUNC(cos)break;
-			case T_ACOS:	EW_FUNC(acos)break;
-			case T_COSD:	EW_FUNC(cosd)break;
-			case T_ACOSD:	EW_FUNC(acosd)break;
-			case T_COSH:	EW_FUNC(cosh)break;
-			case T_ACOSH:	EW_FUNC(acosh)break;
-			case T_SEC:		EW_FUNC(sec)break;
-			case T_ASEC:	EW_FUNC(asec)break;
-			case T_SECD:	EW_FUNC(secd)break;
-			case T_ASECD:	EW_FUNC(asecd)break;
-			case T_SECH:	EW_FUNC(sech)break;
-			case T_ASECH:	EW_FUNC(asech)break;
-			case T_SIN:		EW_FUNC(sin)break;
-			case T_ASIN:	EW_FUNC(asin)break;
-			case T_SIND:	EW_FUNC(sind)break;
-			case T_ASIND:	EW_FUNC(asind)break;
-			case T_SINH:	EW_FUNC(sinh)break;
-			case T_ASINH:	EW_FUNC(asinh)break;
-			case T_CSC:		EW_FUNC(csc)break;
-			case T_ACSC:	EW_FUNC(acsc)break;
-			case T_CSCD:	EW_FUNC(cscd)break;
-			case T_ACSCD:	EW_FUNC(acscd)break;
-			case T_CSCH:	EW_FUNC(csch)break;
-			case T_ACSCH:	EW_FUNC(acsch)break;
-			case T_TAN:		EW_FUNC(tan)break;
-			case T_ATAN:	EW_FUNC(atan)break;
-			case T_TAND:	EW_FUNC(tand)break;
-			case T_ATAND:	EW_FUNC(atand)break;
-			case T_TANH:	EW_FUNC(tanh)break;
-			case T_ATANH:	EW_FUNC(atanh)break;
-			case T_COT:		EW_FUNC(cot)break;
-			case T_ACOT:	EW_FUNC(acot)break;
-			case T_COTD:	EW_FUNC(cotd)break;
-			case T_ACOTD:	EW_FUNC(acotd)break;
-			case T_COTH:	EW_FUNC(coth)break;
-			case T_ACOTH:	EW_FUNC(acoth)break;
-			case T_GAMMA:	EW_FUNC(tgamma)break;
-			case T_LNGAMMA:	EW_FUNC(lgamma)break;
+#define		EW_FUNC(FUNC)	for(int k=0, size=m.dx*m.dy;k<size;++k)FUNC(m.data[k]);
+			case T_EXP:		EW_FUNC(c_exp)break;
+			case T_LN:		EW_FUNC(c_ln)break;
+			//case T_GAMMA:		EW_FUNC(c_tgamma)break;
+			//case T_LNGAMMA:	EW_FUNC(c_lgamma)break;
+			case T_COS:		EW_FUNC(c_cos)break;
+			case T_ACOS:	EW_FUNC(c_acos)break;
+			case T_COSD:	EW_FUNC(c_cosd)break;
+			case T_ACOSD:	EW_FUNC(c_acosd)break;
+			case T_COSH:	EW_FUNC(c_cosh)break;
+			case T_ACOSH:	EW_FUNC(c_acosh)break;
+			case T_SEC:		EW_FUNC(c_sec)break;
+			case T_ASEC:	EW_FUNC(c_asec)break;
+			case T_SECD:	EW_FUNC(c_secd)break;
+			case T_ASECD:	EW_FUNC(c_asecd)break;
+			case T_SECH:	EW_FUNC(c_sech)break;
+			case T_ASECH:	EW_FUNC(c_asech)break;
+			case T_SIN:		EW_FUNC(c_sin)break;
+			case T_ASIN:	EW_FUNC(c_asin)break;
+			case T_SIND:	EW_FUNC(c_sind)break;
+			case T_ASIND:	EW_FUNC(c_asind)break;
+			case T_SINH:	EW_FUNC(c_sinh)break;
+			case T_ASINH:	EW_FUNC(c_asinh)break;
+			case T_CSC:		EW_FUNC(c_csc)break;
+			case T_ACSC:	EW_FUNC(c_acsc)break;
+			case T_CSCD:	EW_FUNC(c_cscd)break;
+			case T_ACSCD:	EW_FUNC(c_acscd)break;
+			case T_CSCH:	EW_FUNC(c_csch)break;
+			case T_ACSCH:	EW_FUNC(c_acsch)break;
+			case T_TAN:		EW_FUNC(c_tan)break;
+			case T_ATAN:	EW_FUNC(c_atan)break;
+			case T_TAND:	EW_FUNC(c_tand)break;
+			case T_ATAND:	EW_FUNC(c_atand)break;
+			case T_TANH:	EW_FUNC(c_tanh)break;
+			case T_ATANH:	EW_FUNC(c_atanh)break;
+			case T_COT:		EW_FUNC(c_cot)break;
+			case T_ACOT:	EW_FUNC(c_acot)break;
+			case T_COTD:	EW_FUNC(c_cotd)break;
+			case T_ACOTD:	EW_FUNC(c_acotd)break;
+			case T_COTH:	EW_FUNC(c_coth)break;
+			case T_ACOTH:	EW_FUNC(c_acoth)break;
 #undef		EW_FUNC
 				break;
 			}
@@ -541,19 +881,26 @@ bool		r_unary(Matrix &m, bool space_sensitive)
 				{
 				case T_CMD:
 					{
-						if(m.dx!=1||m.dy!=1||m2.dx!=1||m2.dy!=1)//expected 2 scalars
-							return user_error2(idx0, idx, "Expected two scalar arguments");
-						int w=(int)floor(*m.data+0.5), h=(int)floor(*m2.data+0.5);
-						*m.data=set_console_buffer_size(w, h);
+						int w=0, h=0;
+						if(!get_int(m, idx0, w))
+							return false;
+						if(!get_int(m2, idx0, h))
+							return false;
+						//if(m.dx!=1||m.dy!=1||m2.dx!=1||m2.dy!=1)//expected 2 scalars
+						//	return user_error2(idx0, idx, "Expected two scalar arguments");
+						//int w=(int)floor(*m.data+0.5), h=(int)floor(*m2.data+0.5);
+						m.data->r=set_console_buffer_size(w, h), m.data->i=0;
+						m.dx=m.dy=1;
+						CREALLOC(m.data, m.data, 1);
 					}
 					break;
 				case T_CONV:
 					{
 						if(m.dy!=1||m2.dy!=1)//expected 2 row vectors
 							return user_error2(idx0, idx, "Expected two row vectors");
-						auto DALLOC(temp, m.dx+m2.dx-1);
+						auto CALLOC(temp, m.dx+m2.dx-1);
 						impl_polmul(temp, m.data, m2.data, m.dx, m2.dx, 0);
-						free(m.data);
+						CFREE(m.data);
 						m.data=temp;
 						m.dx+=m2.dx-1;
 					}
@@ -565,17 +912,27 @@ bool		r_unary(Matrix &m, bool space_sensitive)
 						int size1=m.dx*m.dy, size2=m2.dx*m2.dy;
 						if(size1==2&&size2==2)
 						{
-							double temp=m.data[0]*m2.data[1]-m.data[1]*m2.data[0];
-							DREALLOC(m.data, m.data, 1);
-							*m.data=temp;
+							Comp t1, t2;
+							c_mul(&t1, m.data, m2.data+1);
+							c_mul(&t2, m.data+1, m2.data);
+							t1.r-=t2.r, t1.i-=t2.i;
+							m.data[0]=t1;
+							m.dx=m.dy=1;
+							//double temp=m.data[0]*m2.data[1]-m.data[1]*m2.data[0];
+							CREALLOC(m.data, m.data, 1);
+							//*m.data=temp;
 						}
 						else if(size1==3&&size2==3)
 						{
-							auto DALLOC(temp, 3);
-							temp[0]=m.data[1]*m2.data[2]-m.data[2]*m2.data[1];
-							temp[1]=m.data[2]*m2.data[0]-m.data[0]*m2.data[2];
-							temp[2]=m.data[0]*m2.data[1]-m.data[1]*m2.data[0];
-							free(m.data);
+							auto CALLOC(temp, 3);
+							Comp t4;
+							c_mul(temp  , m.data+1, m2.data+2), c_mul(&t4, m.data+2, m2.data+1), temp[0].r-=t4.r, temp[0].i-=t4.i;
+							c_mul(temp+1, m.data+2, m2.data+0), c_mul(&t4, m.data+0, m2.data+2), temp[1].r-=t4.r, temp[1].i-=t4.i;
+							c_mul(temp+2, m.data+0, m2.data+1), c_mul(&t4, m.data+1, m2.data+0), temp[2].r-=t4.r, temp[2].i-=t4.i;
+							//temp[0]=m.data[1]*m2.data[2]-m.data[2]*m2.data[1];
+							//temp[1]=m.data[2]*m2.data[0]-m.data[0]*m2.data[2];
+							//temp[2]=m.data[0]*m2.data[1]-m.data[1]*m2.data[0];
+							CFREE(m.data);
 							m.data=temp;
 						}
 						else
@@ -590,53 +947,52 @@ bool		r_unary(Matrix &m, bool space_sensitive)
 #if 1
 		case T_NUMBER:
 			m.name=nullptr;
-			m.type=T_REAL;
+			//m.type=T_REAL;
 			m.dx=1, m.dy=1;
-			DALLOC(m.data, 1);
+			CALLOC(m.data, 1);
 			//m.data=(double*)malloc(sizeof(double));
-			m.data[0]=lex_number;
+			m.data->r=lex_number, m.data->i=0;
 			return r_postfix(m, space_sensitive);
 		case T_IMAG:
 		case T_IMAG_UNUSED:
 			m.name=nullptr;
-			m.type=T_COMPLEX;
+			//m.type=T_COMPLEX;
 			m.dx=1, m.dy=1;
-			DALLOC(m.data, 2);
+			CALLOC(m.data, 2);
 			//m.data=(double*)malloc(2*sizeof(double));
-			m.data[0]=0;
-			m.data[1]=1;
+			m.data->r=0, m.data->i=1;
 			return r_postfix(m, space_sensitive);
 		case T_EULER:
 			m.name=nullptr;
-			m.type=T_REAL;
+			//m.type=T_REAL;
 			m.dx=1, m.dy=1;
-			DALLOC(m.data, 1);
+			CALLOC(m.data, 1);
 			//m.data=(double*)malloc(sizeof(double));
-			m.data[0]=_e;
+			m.data->r=_e, m.data->i=0;
 			return r_postfix(m, space_sensitive);
 		case T_PI:
 			m.name=nullptr;
-			m.type=T_REAL;
+			//m.type=T_REAL;
 			m.dx=1, m.dy=1;
-			DALLOC(m.data, 1);
+			CALLOC(m.data, 1);
 			//m.data=(double*)malloc(sizeof(double));
-			m.data[0]=_pi;
+			m.data->r=_pi, m.data->i=0;
 			return r_postfix(m, space_sensitive);
 		case T_INF:
 			m.name=nullptr;
-			m.type=T_REAL;
+			//m.type=T_REAL;
 			m.dx=1, m.dy=1;
-			DALLOC(m.data, 1);
+			CALLOC(m.data, 1);
 			//m.data=(double*)malloc(sizeof(double));
-			m.data[0]=_HUGE;
+			m.data->r=_HUGE, m.data->i=0;
 			return r_postfix(m, space_sensitive);
 		case T_NAN:
 			m.name=nullptr;
-			m.type=T_REAL;
+			//m.type=T_REAL;
 			m.dx=1, m.dy=1;
-			DALLOC(m.data, 1);
+			CALLOC(m.data, 1);
 			//m.data=(double*)malloc(sizeof(double));
-			m.data[0]=_HUGE-_HUGE;
+			m.data->r=_HUGE-_HUGE, m.data->i=0;
 			return r_postfix(m, space_sensitive);
 #endif
 		case T_MINUS:
@@ -645,8 +1001,13 @@ bool		r_unary(Matrix &m, bool space_sensitive)
 				return false;
 			if(!r_postfix(m, space_sensitive))
 				return false;
-			for(int k=0, size=m.dx*m.dy*(1+(m.type==T_COMPLEX));k<size;++k)
-				m.data[k]=-m.data[k];
+			for(int k=0, size=m.dx*m.dy*2;k<size;++k)
+			{
+				m.data[k].r=-m.data[k].r;
+				m.data[k].i=-m.data[k].i;
+			}
+			//for(int k=0, size=m.dx*m.dy*(1+(m.type==T_COMPLEX));k<size;++k)
+			//	m.data[k]=-m.data[k];
 			return true;
 		case T_PLUS:
 			m.name=nullptr;
@@ -690,9 +1051,9 @@ bool		r_unary(Matrix &m, bool space_sensitive)
 							if(m.dx!=m2.dx)
 								return user_error2(idx0, idx, "Matices have different widths: w1=%d != w2=%d", m.dx, m2.dx);
 							int newdy=m.dy+m2.dy;
-							DREALLOC(m.data, m.data, m.dx*newdy);
+							CREALLOC(m.data, m.data, m.dx*newdy);
 							//m.data=(double*)realloc(m.data, m.dx*newdy*sizeof(double));
-							DMEMCPY(m.data+m.dx*m.dy, m2.data, m2.dx*m2.dy);
+							CMEMCPY(m.data+m.dx*m.dy, m2.data, m2.dx*m2.dy);
 							//memcpy(m.data+m.dx*m.dy, m2.data, m2.dx*m2.dy*sizeof(double));
 							m.dy=newdy;
 						}
@@ -747,10 +1108,10 @@ bool		r_multiplicative(Matrix &m, bool space_sensitive)
 				Matrix m2;
 				if(!r_unary(m2, space_sensitive))
 					return false;
-				auto DALLOC(temp, m.dx*m.dy*m2.dx*m2.dy);
+				auto CALLOC(temp, m.dx*m.dy*m2.dx*m2.dy);
 				//double *temp=(double*)malloc(m.dx*m.dy*m2.dx*m2.dy*sizeof(double));
 				impl_tensor(temp, m.data, m2.data, m.dx, m.dy, m2.dx, m2.dy);
-				free(m.data);
+				CFREE(m.data);
 				m.data=temp;
 				m.dx*=m2.dx;
 				m.dy*=m2.dy;
@@ -775,7 +1136,8 @@ bool		r_multiplicative(Matrix &m, bool space_sensitive)
 				if(m.dx==1&&m.dy==1)//multiplication by scalar
 				{
 					for(int k=0, size=m2.dy*m2.dx;k<size;++k)
-						m2.data[k]*=m.data[0];
+						c_mul(m2.data+k, m2.data+k, m.data);
+						//m2.data[k]*=m.data[0];
 					m.move2temp(m2);
 				}
 				else//matrix division
@@ -784,12 +1146,12 @@ bool		r_multiplicative(Matrix &m, bool space_sensitive)
 						return user_error2(idx0, idx, "Denominator matrix must be square: h1=%d != w1=%d", m.dy, m.dx);
 					if(m.dx!=m2.dy)//dimension mismatch
 						return user_error2(idx0, idx, "Dimension mismatch in matrix multiplication: w1=%d != h2=%d", m.dx, m2.dy);
-					REALLOC(double, m.data, m.data, m2.dx*m2.dy);
+					CREALLOC(m.data, m.data, m2.dx*m2.dy);
 					//m.data=(double*)realloc(m.data, m.dx*m.dy*2*sizeof(double));
-					auto DALLOC(temp, m2.dx*m2.dy);
+					auto CALLOC(temp, m2.dx*m2.dy);
 					//double *temp=(double*)malloc(m2.dx*m2.dy*sizeof(double));
 					impl_matdiv_back(temp, m.data, m2.data, m.dy, m2.dx);
-					free(m.data);
+					CFREE(m.data);
 					m.data=temp;
 				}
 			}
@@ -813,12 +1175,14 @@ bool		r_multiplicative(Matrix &m, bool space_sensitive)
 				if(m2.dx==1&&m2.dy==1)//multiplication by scalar
 				{
 					for(int k=0, size=m.dy*m.dx;k<size;++k)
-						m.data[k]*=m2.data[0];
+						c_mul(m.data+k, m.data+k, m2.data);
+						//m.data[k]*=m2.data[0];
 				}
 				else if(m.dx==1&&m.dy==1)//multiplication by scalar
 				{
 					for(int k=0, size=m2.dy*m2.dx;k<size;++k)
-						m2.data[k]*=m.data[0];
+						c_mul(m2.data+k, m2.data+k, m.data);
+						//m2.data[k]*=m.data[0];
 					m.move2temp(m2);
 				}
 				else
@@ -826,7 +1190,8 @@ bool		r_multiplicative(Matrix &m, bool space_sensitive)
 					if(m2.dx!=m.dx||m2.dy!=m.dy)
 						return user_error2(idx0, idx, "Element-wise operation: %dx%d != %dx%d", m.dy, m.dx, m2.dy, m2.dx);
 					for(int k=0, size=m.dx*m.dy;k<size;++k)
-						m.data[k]*=m2.data[k];
+						c_mul(m.data+k, m.data+k, m2.data+k);
+						//m.data[k]*=m2.data[k];
 				}
 			}
 			continue;
@@ -839,12 +1204,14 @@ bool		r_multiplicative(Matrix &m, bool space_sensitive)
 				if(m2.dx==1&&m2.dy==1)//division by scalar
 				{
 					for(int k=0, size=m.dy*m.dx;k<size;++k)
-						m.data[k]/=m2.data[0];
+						c_div(m.data+k, m.data+k, m2.data);
+						//m.data[k]/=m2.data[0];
 				}
 				else if(m.dx==1&&m.dy==1)//element-wise division of scalar by matrix
 				{
 					for(int k=0, size=m2.dy*m2.dx;k<size;++k)
-						m2.data[k]=m.data[0]/m2.data[k];
+						c_div(m2.data+k, m.data, m2.data+k);
+						//m2.data[k]=m.data[0]/m2.data[k];
 					m.move2temp(m2);
 				}
 				else
@@ -852,7 +1219,8 @@ bool		r_multiplicative(Matrix &m, bool space_sensitive)
 					if(m2.dx!=m.dx||m2.dy!=m.dy)
 						return user_error2(idx0, idx, "Element-wise operation: %dx%d != %dx%d", m.dy, m.dx, m2.dy, m2.dx);
 					for(int k=0, size=m.dx*m.dy;k<size;++k)
-						m.data[k]/=m2.data[k];
+						c_div(m.data+k, m.data+k, m2.data+k);
+						//m.data[k]/=m2.data[k];
 				}
 			}
 			continue;
@@ -915,7 +1283,7 @@ bool		r_relational(Matrix &m, bool space_sensitive)
 				if(m.dx!=m2.dx||m.dy!=m2.dy)//dimension mismatch
 					return user_error2(idx0, idx, "Element-wise operation: %dx%d != %dx%d", m.dy, m.dx, m2.dy, m2.dx);
 				for(int k=0, size=m.dx*m.dy;k<size;++k)
-					m.data[k]=m.data[k]<m2.data[k];
+					m.data[k].r=m.data[k].r<m2.data[k].r, m.data[k].i=0;
 			}
 			continue;
 		case T_LESS_EQUAL:
@@ -927,7 +1295,7 @@ bool		r_relational(Matrix &m, bool space_sensitive)
 				if(m.dx!=m2.dx||m.dy!=m2.dy)//dimension mismatch
 					return user_error2(idx0, idx, "Element-wise operation: %dx%d != %dx%d", m.dy, m.dx, m2.dy, m2.dx);
 				for(int k=0, size=m.dx*m.dy;k<size;++k)
-					m.data[k]=m.data[k]<=m2.data[k];
+					m.data[k].r=m.data[k].r<=m2.data[k].r, m.data[k].i=0;
 			}
 			continue;
 		case T_GREATER:
@@ -939,7 +1307,7 @@ bool		r_relational(Matrix &m, bool space_sensitive)
 				if(m.dx!=m2.dx||m.dy!=m2.dy)//dimension mismatch
 					return user_error2(idx0, idx, "Element-wise operation: %dx%d != %dx%d", m.dy, m.dx, m2.dy, m2.dx);
 				for(int k=0, size=m.dx*m.dy;k<size;++k)
-					m.data[k]=m.data[k]>m2.data[k];
+					m.data[k].r=m.data[k].r>m2.data[k].r, m.data[k].i=0;
 			}
 			continue;
 		case T_GREATER_EQUAL:
@@ -951,7 +1319,7 @@ bool		r_relational(Matrix &m, bool space_sensitive)
 				if(m.dx!=m2.dx||m.dy!=m2.dy)//dimension mismatch
 					return user_error2(idx0, idx, "Element-wise operation: %dx%d != %dx%d", m.dy, m.dx, m2.dy, m2.dx);
 				for(int k=0, size=m.dx*m.dy;k<size;++k)
-					m.data[k]=m.data[k]>=m2.data[k];
+					m.data[k].r=m.data[k].r>=m2.data[k].r, m.data[k].i=0;
 			}
 			continue;
 		}
@@ -981,16 +1349,16 @@ bool		r_equality(Matrix &m, bool space_sensitive)
 				{
 					for(int k=0, size=m.dx*m.dy;k<size;++k)
 					{
-						if(abs(m.data[k]-m2.data[k])>1e-10)
+						if(c_distance(m.data[k], m2.data[k])>1e-10)
 						{
 							equal=false;
 							break;
 						}
 					}
 				}
-				DREALLOC(m.data, m.data, 1);
+				CREALLOC(m.data, m.data, 1);
 				//m.data=(double*)realloc(m.data, sizeof(double));
-				m.data[0]=t==T_EQUAL==equal;
+				m.data[0].r=t==T_EQUAL==equal, m.data[0].i=0;
 				m.dx=1;
 				m.dy=1;
 			}
@@ -1068,7 +1436,7 @@ int			solve(std::string &str, bool again)
 
 	lex_init(str.c_str(), str.size()-nspaces);
 	parse_incomplete=false;
-	if(!g_answers.size()||!again&&g_answers.back().type!=T_IGNORED)
+	if(!g_answers.size()||!again&&g_answers.back().data)
 		g_answers.push_back(Matrix());
 	auto &m=g_answers.back();
 	SolveResultType ret=SOLVE_OK;

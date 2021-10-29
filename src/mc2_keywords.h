@@ -10,13 +10,14 @@ TOKEN("I", T_IDEN) TOKEN("sum", T_SUM) TOKEN("ref", T_REF) TOKEN("rref", T_RREF)
 TOKEN("dft", T_DFT) TOKEN("fft", T_FFT_UNUSED) TOKEN("idft", T_IDFT) TOKEN("ifft", T_IFFT_UNUSED)//matrices & polynomials
 
 //generic functions
+TOKEN("exp", T_EXP) TOKEN("ln", T_LN) TOKEN("log", T_LOG)
+TOKEN("gamma", T_GAMMA) TOKEN("lngamma", T_LNGAMMA)
 TOKEN("cos", T_COS) TOKEN("acos", T_ACOS) TOKEN("cosd", T_COSD) TOKEN("acosd", T_ACOSD) TOKEN("cosh", T_COSH) TOKEN("acosh", T_ACOSH)
 TOKEN("sec", T_SEC) TOKEN("asec", T_ASEC) TOKEN("secd", T_SECD) TOKEN("asecd", T_ASECD) TOKEN("sech", T_SECH) TOKEN("asech", T_ASECH)
 TOKEN("sin", T_SIN) TOKEN("asin", T_ASIN) TOKEN("sind", T_SIND) TOKEN("asind", T_ASIND) TOKEN("sinh", T_SINH) TOKEN("asinh", T_ASINH)
 TOKEN("csc", T_CSC) TOKEN("acsc", T_ACSC) TOKEN("cscd", T_CSCD) TOKEN("acscd", T_ACSCD) TOKEN("csch", T_CSCH) TOKEN("acsch", T_ACSCH)
 TOKEN("tan", T_TAN) TOKEN("atan", T_ATAN) TOKEN("tand", T_TAND) TOKEN("atand", T_ATAND) TOKEN("tanh", T_TANH) TOKEN("atanh", T_ATANH)
 TOKEN("cot", T_COT) TOKEN("acot", T_ACOT) TOKEN("cotd", T_COTD) TOKEN("acotd", T_ACOTD) TOKEN("coth", T_COTH) TOKEN("acoth", T_ACOTH)
-TOKEN("gamma", T_GAMMA) TOKEN("lngamma", T_LNGAMMA)
 
 //operators
 TOKEN("\'", T_TRANSPOSE)//unary postfix
@@ -53,7 +54,8 @@ TOKEN(0, T_NUMBER)	//check lex_number
 TOKEN(0, T_ID)		//check lex_id
 
 //parser stuff
-TOKEN(0, T_REAL) TOKEN(0, T_COMPLEX)
+//TOKEN(0, T_MATRIX) TOKEN(0, T_FRACTION)
+//TOKEN(0, T_REAL) TOKEN(0, T_COMPLEX)
 
 TOKEN(0, T_NTOKENS)
 #endif

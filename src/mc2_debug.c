@@ -203,7 +203,7 @@ const char* get_filename(const char *filename)
 }
 
 int			syscall_count=0, emergency_flag=0;
-void*		d_alloc		(const char *file, int line, unsigned long bytesize)
+void*		d_alloc				(const char *file, int line, size_t bytesize)
 {
 	void *p;
 	++syscall_count;
@@ -216,7 +216,7 @@ void*		d_alloc		(const char *file, int line, unsigned long bytesize)
 
 	return p;
 }
-void*		d_realloc	(const char *file, int line, void *p, unsigned long bytesize)
+void*		d_realloc			(const char *file, int line, void *p, size_t bytesize)
 {
 	void *p2;
 	++syscall_count;
@@ -231,7 +231,7 @@ void*		d_realloc	(const char *file, int line, void *p, unsigned long bytesize)
 		return p2;
 	return p;
 }
-int			d_free		(const char *file, int line, void *p)
+int			d_free				(const char *file, int line, void *p)
 {
 	int status=0;
 
@@ -252,7 +252,56 @@ int			d_free		(const char *file, int line, void *p)
 
 	return status;
 }
-void		d_memset	(const char *file, int line, void *dst, int val, int bytesize)
+
+void*		d_aligned_alloc		(const char *file, int line, unsigned long bytesize, size_t alignment)
+{
+	void *p;
+	++syscall_count;
+	printf("%s(%d): #%d malloc %ld", get_filename(file), line, syscall_count, bytesize);
+	p=_aligned_malloc(bytesize, alignment);
+	printf(" -> 0x%p\n", p);
+
+	pointers_action_alloc(p, bytesize);
+
+	return p;
+}
+void*		d_aligned_realloc	(const char *file, int line, void *p, size_t bytesize, size_t alignment)
+{
+	void *p2;
+	++syscall_count;
+	printf("%s(%d): #%d realloc %ld, 0x%p", get_filename(file), line, syscall_count, bytesize, p);
+	p2=_aligned_realloc(p, bytesize, alignment);
+	printf(" -> 0x%p\n", p2);
+
+	pointers_action_realloc(p, p2, bytesize);
+
+	if(p2)
+		return p2;
+	return p;
+}
+int			d_aligned_free		(const char *file, int line, void *p)
+{
+	int status=0;
+
+	++syscall_count;
+	printf("%s(%d): #%d free 0x%p", get_filename(file), line, syscall_count, p);
+
+	status=pointers_action_free(p);
+	if(status<0)
+	{
+		printf("Expecting a crash at free()\n");
+		_getch();
+	}
+
+	if(p)
+		_aligned_free(p);
+
+	printf("\n");
+
+	return status;
+}
+
+void		d_memset			(const char *file, int line, void *dst, int val, size_t bytesize)
 {
 	++syscall_count;
 	printf("%s(%d): #%d memset 0x%p := %d, %d before:\n\t", get_filename(file), line, syscall_count, dst, val, bytesize);
@@ -266,7 +315,7 @@ void		d_memset	(const char *file, int line, void *dst, int val, int bytesize)
 	printf("\t...after:\n\t");
 	mem_print(dst, bytesize);
 }
-void		d_memcpy	(const char *file, int line, void *dst, const void *src, int bytesize)
+void		d_memcpy			(const char *file, int line, void *dst, const void *src, size_t bytesize)
 {
 	++syscall_count;
 	printf("%s(%d): #%d memcpy 0x%p := 0x%p, %d before:\n\t", get_filename(file), line, syscall_count, dst, src, bytesize);
@@ -281,7 +330,7 @@ void		d_memcpy	(const char *file, int line, void *dst, const void *src, int byte
 	printf("\t...after:\n\t");
 	mem_print(dst, bytesize);
 }
-void		d_memmove	(const char *file, int line, void *dst, const void *src, int bytesize)
+void		d_memmove			(const char *file, int line, void *dst, const void *src, size_t bytesize)
 {
 	++syscall_count;
 	printf("%s(%d): #%d memmove 0x%p := 0x%p, %d before:\n\t", get_filename(file), line, syscall_count, dst, src, bytesize);

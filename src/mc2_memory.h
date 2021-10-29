@@ -24,21 +24,31 @@
 
 #ifdef DEBUG_MEMORY
 #include	<conio.h>
-#define		malloc(SIZE)			d_alloc(file, __LINE__, SIZE)
-#define		realloc(POINTER, SIZE)	d_realloc(file, __LINE__, POINTER, SIZE)
-#define		free(POINTER)			d_free(file, __LINE__, POINTER)
-#define		memcpy(DST, SRC, SIZE)	d_memcpy(file, __LINE__, DST, SRC, SIZE)
-#define		memmove(DST, SRC, SIZE)	d_memmove(file, __LINE__, DST, SRC, SIZE)
-#define		memset(DST, VAL, SIZE)	d_memset(file, __LINE__, DST, VAL, SIZE)
+#define		malloc(SIZE)							d_alloc(file, __LINE__, SIZE)
+#define		realloc(POINTER, SIZE)					d_realloc(file, __LINE__, POINTER, SIZE)
+#define		free(POINTER)							d_free(file, __LINE__, POINTER)
+
+#define		_aligned_malloc(SIZE, ALIGN)			d_aligned_alloc(file, __LINE__, SIZE, ALIGN)
+#define		_aligned_realloc(POINTER, SIZE, ALIGN)	d_aligned_realloc(file, __LINE__, POINTER, SIZE)
+#define		_aligned_free(POINTER)					d_aligned_free(file, __LINE__, POINTER)
+
+#define		memcpy(DST, SRC, SIZE)					d_memcpy(file, __LINE__, DST, SRC, SIZE)
+#define		memmove(DST, SRC, SIZE)					d_memmove(file, __LINE__, DST, SRC, SIZE)
+#define		memset(DST, VAL, SIZE)					d_memset(file, __LINE__, DST, VAL, SIZE)
 extern "C"
 {
 	extern int	syscall_count, emergency_flag;
-	void*	d_alloc		(const char *file, int line, unsigned long bytesize);
-	void*	d_realloc	(const char *file, int line, void *p, unsigned long bytesize);
-	int		d_free		(const char *file, int line, void *p);
-	void	d_memset	(const char *file, int line, void *dst, int val, int bytesize);
-	void	d_memcpy	(const char *file, int line, void *dst, const void *src, int bytesize);
-	void	d_memmove	(const char *file, int line, void *dst, const void *src, int bytesize);
+	void*	d_alloc				(const char *file, int line, size_t bytesize);
+	void*	d_realloc			(const char *file, int line, void *p, size_t bytesize);
+	int		d_free				(const char *file, int line, void *p);
+
+	void*	d_aligned_alloc		(const char *file, int line, size_t bytesize, size_t alignment);
+	void*	d_aligned_realloc	(const char *file, int line, void *p, size_t bytesize, size_t alignment);
+	int		d_aligned_free		(const char *file, int line, void *p);
+
+	void	d_memset			(const char *file, int line, void *dst, int val, size_t bytesize);
+	void	d_memcpy			(const char *file, int line, void *dst, const void *src, size_t bytesize);
+	void	d_memmove			(const char *file, int line, void *dst, const void *src, size_t bytesize);
 }
 #endif
 static void	memfill(void *dst, const void *src, size_t dstbytes, size_t srcbytes)
@@ -63,7 +73,7 @@ static void	memfill(void *dst, const void *src, size_t dstbytes, size_t srcbytes
 }
 #define		ALLOC(TYPE, NEWP, COUNT)					NEWP=(TYPE*)malloc((COUNT)*sizeof(TYPE))
 #define		REALLOC(TYPE, NEWP, OLDP, COUNT)			NEWP=(TYPE*)realloc(OLDP, (COUNT)*sizeof(TYPE))
-//#define	FREE(OLDP)									free(OLDP)
+#define		FREE(OLDP)									free(OLDP)
 #define		MEMFILL(TYPE, DST, SRC, DSTCOUNT, SRCCOUNT)	memfill(DST, SRD, (DSTCOUNT)*sizeof(TYPE), (SRCCOUNT)*sizeof(TYPE))
 #define		MEMZERO(TYPE, DST, COUNT)					memset(DST, 0, (COUNT)*sizeof(TYPE))
 #define		MEMCPY(TYPE, DST, SRC, COUNT)				memcpy(DST, SRC, (COUNT)*sizeof(TYPE))
@@ -71,9 +81,23 @@ static void	memfill(void *dst, const void *src, size_t dstbytes, size_t srcbytes
 
 #define		DALLOC(NEWP, COUNT)							ALLOC(double, NEWP, COUNT)
 #define		DREALLOC(NEWP, OLDP, COUNT)					REALLOC(double, NEWP, OLDP, COUNT)
-//#define	DFREE(OLDP)									FREE(OLDP)
+#define		DFREE(OLDP)									FREE(OLDP)
 #define		DMEMFILL(DST, SRC, DSTCOUNT, SRCCOUNT)		MEMFILL(double, DST, SRC, DSTCOUNT, SRCCOUNT)
 #define		DMEMZERO(DST, COUNT)						MEMZERO(double, DST, COUNT)
 #define		DMEMCPY(DST, SRC, COUNT)					MEMCPY(double, DST, SRC, COUNT)
 #define		DMEMMOVE(DST, SRC, COUNT)					MEMMOVE(double, DST, SRC, COUNT)
+
+//for complex data
+//typedef		double Comp[2];
+typedef struct _Comp
+{
+	double r, i;
+} Comp;
+#define		CALLOC(NEWP, COUNT)							NEWP=(Comp*)_aligned_malloc((COUNT)*sizeof(Comp), 16)
+#define		CREALLOC(NEWP, OLDP, COUNT)					NEWP=(Comp*)_aligned_realloc(OLDP, (COUNT)*sizeof(Comp), 16)
+#define		CFREE(OLDP)									_aligned_free(OLDP)
+#define		CMEMFILL(DST, SRC, DSTCOUNT, SRCCOUNT)		memfill(DST, SRD, (DSTCOUNT)*sizeof(Comp), (SRCCOUNT)*sizeof(Comp))
+#define		CMEMZERO(DST, COUNT)						memset(DST, 0, (COUNT)*sizeof(Comp))
+#define		CMEMCPY(DST, SRC, COUNT)					memcpy(DST, SRC, (COUNT)*sizeof(Comp))
+#define		CMEMMOVE(DST, SRC, COUNT)					memmove(DST, SRC, (COUNT)*sizeof(Comp))
 #endif

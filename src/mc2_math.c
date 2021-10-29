@@ -19,6 +19,7 @@
 #include	<stdlib.h>
 #include	<string.h>
 #include	<math.h>
+#include	<tmmintrin.h>
 int			maximum(int a, int b){return a>b?a:b;}
 int			minimum(int a, int b){return a<b?a:b;}
 int			clamp(int lo, int x, int hi)
@@ -174,7 +175,9 @@ double		_10pow(int n)
 	return mask[n+308];
 }
 
-void		print_matrix_debug(const double *buf, int w, int h)
+
+//complex functions
+void		print_matrix_debug(const double *data, int w, int h)
 {
 	int kx, ky;
 
@@ -182,60 +185,143 @@ void		print_matrix_debug(const double *buf, int w, int h)
 	for(ky=0;ky<h;++ky)
 	{
 		for(kx=0;kx<w;++kx)
-			printf("%4g ", buf[w*ky+kx]);
+			printf("%4g + i%4g", data[(w*ky+kx)<<1], data[((w*ky+kx)<<1)+1]);
 		printf("\n");
 	}
 	printf("\n");
 }
 
-void		impl_addbuffers(double *dst, double const *a, double const *b, int size)
+double		c_abs2(Comp const *z){return z->r*z->r+z->i*z->i;}
+void		c_inv(Comp *dst, const Comp *z)
 {
-	int k;
-	for(k=0;k<size;++k)
-		dst[k]=a[k]+b[k];
+	double invabs2=1/c_abs2(z);
+	dst->r=z->r* invabs2;
+	dst->i=z->i*-invabs2;
 }
-void		impl_subbuffers(double *dst, double const *a, double const *b, int size)
+void		c_mul(Comp *dst, const Comp *a, const Comp *b)//(a0+a1i)(b0+b1i)=a0b0-a1b1+i(a0b1+a1b0)	//dst, a and b can point to the same address
 {
-	int k;
-	for(k=0;k<size;++k)
-		dst[k]=a[k]-b[k];
+	double
+		r=a->r*b->r-a->i*b->i,
+		i=a->r*b->i+a->i*b->r;
+	dst->r=r, dst->i=i;
 }
-void		impl_negbuffer(double *dst, double const *a, int size)
+void		c_div(Comp *dst, const Comp *a, const Comp *b)
 {
-	int k;
-	for(k=0;k<size;++k)
-		dst[k]=-a[k];
+	double invabsb2=1/c_abs2(b);
+	double
+		r=(a->r*b->r+a->i*b->i)*invabsb2,
+		i=(a->i*b->r-a->r*b->i)*invabsb2;
+	dst->r=r, dst->i=i;
 }
-void		impl_buf_plus_val(double *dst, double const *buf, double val, int size)
+void		c_mod(Comp *dst, const Comp *a, const Comp *b)//dst=a-floor(a/b)*b
 {
-	int k;
-	for(k=0;k<size;++k)
-		dst[k]=buf[k]+val;
-}
-void		impl_val_minus_buf(double *dst, double val, double const *buf, int size)
-{
-	int k;
-	for(k=0;k<size;++k)
-		dst[k]=val-buf[k];
-}
-void		impl_buf_mul_val(double *dst, double const *buf, double val, int size)
-{
-	int k;
-	for(k=0;k<size;++k)
-		dst[k]=buf[k]*val;
+	Comp z;
+	c_div(&z, a, b);
+	z.r=floor(z.r);
+	z.i=floor(z.i);
+	c_mul(&z, &z, b);
+	dst->r=a->r-z.r;
+	dst->i=a->i-z.i;
 }
 
-void		impl_ref(double *m, short dx, short dy)
+void		impl_addbuffers(Comp *dst, Comp const *a, Comp const *b, int count)
 {
-	double pivot, coeff;
+	Comp *p=dst, *end=dst+count;
+	__m128d va, vb;
+	for(;p<end;++p, ++a, ++b)
+	{
+		va=_mm_load_pd((double*)a);
+		vb=_mm_load_pd((double*)b);
+		va=_mm_add_pd(va, vb);
+		_mm_store_pd((double*)p, va);
+	}
+	//int k;
+	//for(k=0;k<size;++k)
+	//	dst[k]=a[k]+b[k];
+}
+void		impl_subbuffers(Comp *dst, Comp const *a, Comp const *b, int count)
+{
+	__m128d va, vb;
+	Comp *p=dst, *end=dst+count;
+	for(;p<end;p+=2, a+=2, b+=2)
+	{
+		va=_mm_load_pd((double*)a);
+		vb=_mm_load_pd((double*)b);
+		va=_mm_sub_pd(va, vb);
+		_mm_store_pd((double*)p, va);
+	}
+	//int k;
+	//for(k=0;k<size;++k)
+	//	dst[k]=a[k]-b[k];
+}
+void		impl_negbuffer(Comp *dst, Comp const *a, int count)
+{
+	__m128d va, zero=_mm_setzero_pd();
+	Comp *p=dst, *end=dst+count;
+	for(;p<end;p+=2, a+=2)
+	{
+		va=_mm_load_pd((double*)a);
+		va=_mm_sub_pd(zero, va);
+		_mm_store_pd((double*)p, va);
+	}
+	//int k;
+	//for(k=0;k<size;++k)
+	//	dst[k]=-a[k];
+}
+void		impl_buf_plus_val(Comp *dst, Comp const *a, const Comp *val, int count)
+{
+	__m128d va, vb=_mm_load_pd((double*)val);
+	Comp *p=dst, *end=dst+count;
+	for(;p<end;p+=2, a+=2)
+	{
+		va=_mm_load_pd((double*)a);
+		va=_mm_add_pd(va, vb);
+		_mm_store_pd((double*)p, va);
+	}
+	//int k;
+	//for(k=0;k<size;++k)
+	//	dst[k]=buf[k]+val;
+}
+void		impl_val_minus_buf(Comp *dst, const Comp *val, Comp const *b, int count)
+{
+	__m128d va=_mm_load_pd((double*)val), vb;
+	Comp *p=dst, *end=dst+count;
+	for(;p<end;p+=2, b+=2)
+	{
+		vb=_mm_load_pd((double*)b);
+		vb=_mm_sub_pd(va, vb);
+		_mm_store_pd((double*)p, vb);
+	}
+	//int k;
+	//for(k=0;k<size;++k)
+	//	dst[k]=val-buf[k];
+}
+void		impl_buf_mul_val(Comp *dst, Comp const *a, const Comp *val, int count)
+{
+	Comp *p=dst, *end=dst+count;
+	for(;p<end;p+=2, a+=2)
+		c_mul(p, a, val);
+	//int k;
+	//for(k=0;k<size;++k)
+	//	dst[k]=buf[k]*val;
+}
+
+void		impl_ref(Comp *m, short dx, short dy)
+{
+#ifdef _DEBUG
+	Comp pivot;
+#endif
+	Comp coeff, temp;
 	int mindim=dx<dy?dx:dy, it, ky, kx;
 	for(it=0;it<mindim;++it)//iteration
 	{
 		for(ky=it;ky<dy;++ky)//find pivot
 		{
-			if(m[dx*ky+it])
+			if(c_abs2(m+((dx*ky+it)<<1))>1e-10)
 			{
+#ifdef _DEBUG
 				pivot=m[dx*ky+it];
+#endif
 				break;
 			}
 		}
@@ -246,86 +332,109 @@ void		impl_ref(double *m, short dx, short dy)
 					coeff=m[dx*it+kx], m[dx*it+kx]=m[dx*ky+kx], m[dx*ky+kx]=coeff;
 			for(++ky;ky<dy;++ky)//subtract pivot row
 			{
-				coeff=m[dx*ky+it]/m[dx*it+it];
+				c_div(&coeff, m+dx*ky+it, m+dx*it+it);
+				//coeff=m[dx*ky+it]/m[dx*it+it];
 				for(kx=it;kx<dx;++kx)
-					m[dx*ky+kx]-=coeff*m[dx*it+kx];
+				{
+					c_mul(&temp, &coeff, m+dx*it+kx);
+					m[dx*ky+kx].r-=temp.r;
+					m[dx*ky+kx].i-=temp.i;
+				}
+					//m[dx*ky+kx]-=coeff*m[dx*it+kx];
 			}
 		}
 	}
 }
-void		impl_rref(double *m, short dx, short dy)
+void		impl_rref(Comp *m, short dx, short dy)
 {
-	double pivot, coeff;
+#ifdef _DEBUG
+	Comp pivot;
+#endif
+	Comp coeff, temp;
 	int mindim=dx<dy?dx:dy, it, ky, kx;
 	for(it=0;it<mindim;++it)//iteration
 	{
 		for(ky=it;ky<dy;++ky)//find pivot
 		{
-			pivot=m[dx*ky+it];
-			if(abs(pivot)>1e-10)
+			if(c_abs2(m+((dx*ky+it)<<1))>1e-10)
+			{
+#ifdef _DEBUG
+				pivot=m[dx*ky+it];
+#endif
 				break;
+			}
 		}
 		if(ky<dy)
 		{
 			if(ky!=it)
+			{
 				for(kx=0;kx<dx;++kx)//swap rows
 					coeff=m[dx*it+kx], m[dx*it+kx]=m[dx*ky+kx], m[dx*ky+kx]=coeff;
+			}
 			for(ky=0;ky<dy;++ky)
 			{
 				if(ky==it)//normalize pivot
 				{
-					coeff=1/m[dx*it+it];
+					c_inv(&coeff, m+dx*it+it);
+					//coeff=1/m[dx*it+it];
 					for(kx=it;kx<dx;++kx)
-						m[dx*it+kx]*=coeff;
+						c_mul(m+dx*it+kx, m+dx*it+kx, &coeff);
+						//m[dx*it+kx]*=coeff;
 				}
 				else//subtract pivot row from all other rows
 				{
-					coeff=m[dx*ky+it]/m[dx*it+it];
+					c_div(&coeff, m+dx*ky+it, m+dx*it+it);
+					//coeff=m[dx*ky+it]/m[dx*it+it];
 					for(kx=it;kx<dx;++kx)
-						m[dx*ky+kx]-=coeff*m[dx*it+kx];
+					{
+						c_mul(&temp, &coeff, m+dx*it+kx);
+						m[dx*ky+kx].r-=temp.r;
+						m[dx*ky+kx].i-=temp.i;
+					}
+						//m[dx*ky+kx]-=coeff*m[dx*it+kx];
 				}
 				//print_matrix_debug(m, dx, dy);
 			}
 		}
 	}
 }
-double		impl_det(double *m, int dx)//m is destroyed
+Comp		impl_det(Comp *m, int dx)//m is destroyed
 {
 	int k, dxplus1=dx+1;
-	double result=0;
+	Comp result;
 	impl_ref(m, dx, dx);
 
 	result=m[0];//accumulate diagonal
 	for(k=1;k<dx;++k)
-		result*=m[dxplus1*k];
+		c_mul(&result, &result, m+dxplus1*k);
 	return result;
 }
-void		impl_matinv(double *m, short dx)//resize m to (dy * 2dx) temporarily,		dx==dy always
+void		impl_matinv(Comp *m, short dx)//resize m to (dy * 2dx) temporarily,		dx==dy always
 {
 	int k, dy=dx, size=dx*dy;
 			//print_matrix_debug(m, dx<<1, dy);//
 	for(k=size-dx;k>=0;k-=dx)//expand M into [M, 0]
 	{
-		DMEMCPY(m+(k<<1), m+k, dx);
+		CMEMCPY(m+(k<<1), m+k, dx);
 		//memcpy(m+(k<<1), m+k, dx*sizeof(double));
-		DMEMZERO(m+(k<<1)+dx, dx);
+		CMEMZERO(m+(k<<1)+dx, dx);
 		//memset(m+(k<<1)+dx, 0, dx*sizeof(double));
 	}
 			//print_matrix_debug(m, dx<<1, dy);//
 	for(k=0;k<dx;++k)//add identity: [M, I]
-		m[(dx<<1)*k+dx+k]=1;
+		m[(dx<<1)*k+dx+k].r=1;
 			//print_matrix_debug(m, dx<<1, dy);//
 	impl_rref(m, dx<<1, dy);//[I, M^-1]
 			//print_matrix_debug(m, dx<<1, dy);//
 	for(k=0;k<size;k+=dx)//pack M^-1
-		DMEMCPY(m+k, m+(k<<1)+dx, dx);
+		CMEMCPY(m+k, m+(k<<1)+dx, dx);
 		//memcpy(m+k, m+(k<<1)+dx, dx*sizeof(double));
 			//print_matrix_debug(m, dx<<1, dy);//
 }
-void		impl_matmul(double *dst, const double *m1, const double *m2, int h1, int w1h2, int w2)
+void		impl_matmul(Comp *dst, const Comp *m1, const Comp *m2, int h1, int w1h2, int w2)
 {
 	int kx, ky, kv;
-	double *C;
+	Comp *C, temp;
 #ifdef DEBUG_MEMORY
 	printf("impl_matmul():\n");
 	print_matrix_debug(dst, w2, h1);
@@ -339,13 +448,17 @@ void		impl_matmul(double *dst, const double *m1, const double *m2, int h1, int w
 		for(kx=0;kx<w2;++kx)
 		{
 			C=dst+w2*ky+kx;
-			*C=0;
+			C->r=0, C->i=0;
 			for(kv=0;kv<w1h2;++kv)
-				*C+=m1[w1h2*ky+kv]*m2[w2*kv+kx];
+			{
+				c_mul(&temp, m1+w1h2*ky+kv, m2+w2*kv+kx);
+				C->r+=temp.r, C->i+=temp.i;
+			}
+				//*C+=m1[w1h2*ky+kv]*m2[w2*kv+kx];
 		}
 	}
 }
-void		impl_transpose(double *dst, const double *src, int src_dx, int src_dy)
+void		impl_transpose(Comp *dst, const Comp *src, int src_dx, int src_dy)
 {
 	int ky, kx;
 
@@ -353,10 +466,10 @@ void		impl_transpose(double *dst, const double *src, int src_dx, int src_dy)
 		for(kx=0;kx<src_dx;++kx)
 			dst[src_dy*kx+ky]=src[src_dx*ky+kx];
 }
-void		impl_tensor(double *dst, const double *m1, const double *m2, int dx1, int dy1, int dx2, int dy2)
+void		impl_tensor(Comp *dst, const Comp *m1, const Comp *m2, int dx1, int dy1, int dx2, int dy2)
 {
 	int dx, kx, ky, kx2, ky2;
-	double coeff;
+	Comp coeff;
 
 	dx=dx1*dx2;
 	for(ky=0;ky<dy1;++ky)
@@ -366,26 +479,27 @@ void		impl_tensor(double *dst, const double *m1, const double *m2, int dx1, int 
 			coeff=m1[dx1*ky+kx];
 			for(ky2=0;ky2<dy2;++ky2)
 				for(kx2=0;kx2<dx2;++kx2)
-					dst[dx*(dy2*ky+ky2)+dx2*kx+kx2]=coeff*m2[dx2*ky2+kx2];
+					c_mul(dst+dx*(dy2*ky+ky2)+dx2*kx+kx2, &coeff, m2+dx2*ky2+kx2);
+					//dst[dx*(dy2*ky+ky2)+dx2*kx+kx2]=coeff*m2[dx2*ky2+kx2];
 		}
 	}
 }
-void		impl_matdiv(double *dst, const double *num, double *den, int num_dy, int dx)//dst & num: num_dy*dx,  den: dx*(dx*2)		den is destroyed
+void		impl_matdiv(Comp *dst, const Comp *num, Comp *den, int num_dy, int dx)//dst & num: num_dy*dx,  den: dx*(dx*2)		den is destroyed
 {
 	impl_matinv(den, dx);
 
 	impl_matmul(dst, num, den, num_dy, dx, dx);
 }
-void		impl_matdiv_back(double *dst, double *den, const double *num, int dy, int num_dx)//den: dy*(dy*2),  dst & num: dy*num_dx		den is destroyed
+void		impl_matdiv_back(Comp *dst, Comp *den, const Comp *num, int dy, int num_dx)//den: dy*(dy*2),  dst & num: dy*num_dx		den is destroyed
 {
 	impl_matinv(den, dy);
 
 	impl_matmul(dst, den, num, dy, dy, num_dx);
 }
-void		impl_matpow(double *dst, double *m1, int e, int dx)//dst: dx*dx,  m1: dx*(dx*2)		calculates m1^e,	m1 is destroyed
+void		impl_matpow(Comp *dst, Comp *m1, int e, int dx)//dst: dx*dx,  m1: dx*(dx*2)		calculates m1^e,	m1 is destroyed
 {
 	int k, size=dx*dx;
-	double *temp=m1+size;
+	Comp *temp=m1+size;
 
 	if(e<0)//negative exponent
 	{
@@ -394,51 +508,56 @@ void		impl_matpow(double *dst, double *m1, int e, int dx)//dst: dx*dx,  m1: dx*(
 	}
 	//memcpy(x, m1, size*sizeof(double));
 
-	DMEMZERO(dst, size);
+	CMEMZERO(dst, size);
 	//memset(dst, 0, size*sizeof(double));//identity matrix
 	for(k=0;k<size;k+=dx+1)
-		dst[k]=1;
+		dst[k].r=1;
 
 	for(;;)
 	{
 		if(e&1)
 		{
 			impl_matmul(temp, dst, m1, dx, dx, dx);
-			DMEMCPY(dst, temp, size);
+			CMEMCPY(dst, temp, size);
 			//memcpy(dst, temp, size*sizeof(double));
 		}
 		e>>=1;
 		if(!e)
 			break;
 		impl_matmul(temp, m1, m1, dx, dx, dx);
-		DMEMCPY(m1, temp, size);
+		CMEMCPY(m1, temp, size);
 		//memcpy(m1, temp, size*sizeof(double));
 	}
 }
 
 //polynomials are stored as they are read	p[0]*x^(n-1) + p[1]*x^(n-2) + ...p[n-1] of degree n-1
-void		impl_polmul(double *res, double const *A, double const *B, int asize, int bsize, int add)//res has correct size of (asize+bsize-1)
+void		impl_polmul(Comp *res, Comp const *A, Comp const *B, int asize, int bsize, int add)//res has correct size of (asize+bsize-1)
 {//int add:  -1: subtract from res;  0: overwrite res;  1: add to res
 	int dst_size=asize+bsize-1, k, k2;
-	double coeff;
-	double sign=1;
+	Comp coeff, sign={1, 0}, temp;
 	if(add==-1)
-		sign=-1;
+		sign.r=-1;
 	if(!add)
-		DMEMZERO(res, dst_size);
+		CMEMZERO(res, dst_size);
 		//memset(res, 0, dst_size*sizeof(double));
 	for(k=0;k<asize;++k)//schoolbook O(n2)
 	{
-		coeff=sign*A[asize-1-k];
+		c_mul(&coeff, &sign, A+asize-1-k);
+		//coeff=sign*A[asize-1-k];
 		for(k2=0;k2<bsize;++k2)
-			res[dst_size-1-k-k2]+=coeff*B[bsize-1-k2];
+		{
+			c_mul(&temp, &coeff, B+bsize-1-k2);
+			res[dst_size-1-k-k2].r+=temp.r;
+			res[dst_size-1-k-k2].i+=temp.i;
+		}
+			//res[dst_size-1-k-k2]+=coeff*B[bsize-1-k2];
 	}
 }
 #if 0
 void		impl_poldiv(double const *num, double const *den, int nnum, int nden, double *q, double *r)//qsize=nnum-nden+1, rsize=nnum (actually min(num, nden-1))
 {
 	int qsize=nnum-nden+1, k, k2;
-	DMEMCPY(r, num, nnum);
+	CMEMCPY(r, num, nnum);
 	//memcpy(r, num, nnum*sizeof(double));
 	for(k=0;k<qsize;++k)//schoolbook O(n2)
 	{
@@ -468,8 +587,8 @@ int			impl_polgcd(double *res, double const *A, double const *B, int asize, int 
 	r[0]=cvec+qsize;
 	r[1]=r[0]+rsize[0];
 	r[2]=r[1]+rsize[1];
-	DMEMCPY(r[0], A, asize);
-	DMEMCPY(r[1], B, bsize);
+	CMEMCPY(r[0], A, asize);
+	CMEMCPY(r[1], B, bsize);
 	//memcpy(r[0], A, asize*sizeof(double));
 	//memcpy(r[1], B, bsize*sizeof(double));
 	for(;;)
@@ -482,7 +601,7 @@ int			impl_polgcd(double *res, double const *A, double const *B, int asize, int 
 		q=r[2], r[2]=r[0], r[0]=r[1], r[1]=q, q=cvec;//cycle pointers & their sizes {r[0], <- r[1], <- r[2]}
 		leadingzeros=rsize[2], rsize[2]=rsize[0], rsize[0]=rsize[1], rsize[1]=leadingzeros;
 	}
-	DMEMCPY(res, r[1], rsize[1]);
+	CMEMCPY(res, r[1], rsize[1]);
 	//memcpy(res, r[1], rsize[1]*sizeof(double));
 	v_destroy(&cvec);
 	return rsize[1];
@@ -526,13 +645,13 @@ void		impl_fracsimplify(Object *frac)
 		newnumsize=frac->dx-gcdsize+1;
 		r=q+newnumsize;
 		impl_poldiv(frac->r, gcd, frac->dx, gcdsize, q, r);//num/gcd
-		DMEMCPY(frac->r, q, newnumsize);
+		CMEMCPY(frac->r, q, newnumsize);
 		//memcpy(frac->r, q, newnumsize*sizeof(double));
 		
 		newdensize=frac->dy-gcdsize+1;
 		r=q+newdensize;
 		impl_poldiv(frac->r+frac->dx, gcd, frac->dy, gcdsize, q, r);//den/gcd
-		DMEMCPY(frac->r+newnumsize, q, newdensize);
+		CMEMCPY(frac->r+newnumsize, q, newdensize);
 		//memcpy(frac->r+newnumsize, q, newdensize*sizeof(double));
 
 		frac->dx=newnumsize;
@@ -628,9 +747,9 @@ void		impl_fracpow(Object *dst, Object *A, Object *B, Token *fn)
 		x.dx=A->dy;
 		x.dy=A->dx;
 		V_CONSTRUCT(double, x.r, x.dx+x.dy, 0, 0);
-		DMEMCPY(x.r, &v_at(A->r, A->dx), A->dy);
+		CMEMCPY(x.r, &v_at(A->r, A->dx), A->dy);
 		//memcpy(x.r, &v_at(A->r, A->dx), A->dy*sizeof(double));
-		DMEMCPY(x.r+x.dx, A->r, A->dx);
+		CMEMCPY(x.r+x.dx, A->r, A->dx);
 		//memcpy(x.r+x.dx, A->r, A->dx*sizeof(double));
 	}
 	for(;;)
@@ -686,7 +805,7 @@ void		impl_matpolsubs(double *res, const double *m, double *m_temp, const double
 		res[k]=coeff[0];
 	for(k=1;k<ncoeff;++k)
 	{
-		DMEMCPY(m_temp, res, size);
+		CMEMCPY(m_temp, res, size);
 		//memcpy(m_temp, res, size*sizeof(double));//res*=m
 		impl_matmul(res, m_temp, m, dx, dx, dx);
 

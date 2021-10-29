@@ -43,27 +43,33 @@ extern "C"
 	double	power(double x, int y);
 	double	_10pow(int n);
 	
-	void	print_matrix_debug(const double *buf, int w, int h);
+	void	print_matrix_debug(Comp const *buf, int w, int h);
 
-	void	impl_addbuffers(double *dst, double const *a, double const *b, int size);
-	void	impl_subbuffers(double *dst, double const *a, double const *b, int size);
-	void	impl_negbuffer(double *dst, double const *a, int size);
-	void	impl_buf_plus_val(double *dst, double const *buf, double val, int size);
-	void	impl_val_minus_buf(double *dst, double val, double const *buf, int size);
-	void	impl_buf_mul_val(double *dst, double const *buf, double val, int size);
+	double	c_abs2(Comp *z);
+	void	c_inv(Comp *dst, const Comp *z);
+	void	c_mul(Comp *dst, const Comp *a, const Comp *b);
+	void	c_div(Comp *dst, const Comp *a, const Comp *b);
+	void	c_mod(Comp *dst, const Comp *a, const Comp *b);
 
-	void	impl_ref(double *m, short dx, short dy);
-	void	impl_rref(double *m, short dx, short dy);
-	double	impl_det(double *m, int dx);//m is destroyed
-	void	impl_matinv(double *m, short dx);//resize m to (dy * 2dx) temporarily,		dx==dy always
-	void	impl_matmul(double *dst, const double *A, const double *B, int h1, int w1h2, int w2);
-	void	impl_transpose(double *dst, const double *src, int src_dx, int src_dy);
-	void	impl_tensor(double *dst, const double *m1, const double *m2, int dx1, int dy1, int dx2, int dy2);
-	void	impl_matdiv(double *dst, const double *num, double *den, int num_dy, int dx);		//dst & num: num_dy*dx,  den: dx*(dx*2)		den is destroyed
-	void	impl_matdiv_back(double *dst, double *den, const double *num, int dy, int num_dx);	//den: dy*(dy*2),  dst & num: dy*num_dx		den is destroyed
-	void	impl_matpow(double *dst, double *m1, int e, int dx);//dst: dx*dx,  m1: dx*(dx*2)		calculates m1^e,	m1 is destroyed
+	void	impl_addbuffers(Comp *dst, Comp const *a, Comp const *b, int count);//count of doubles
+	void	impl_subbuffers(Comp *dst, Comp const *a, Comp const *b, int count);
+	void	impl_negbuffer(Comp *dst, Comp const *a, int count);
+	void	impl_buf_plus_val(Comp *dst, Comp const *buf, Comp val, int count);
+	void	impl_val_minus_buf(Comp *dst, Comp val, Comp const *buf, int count);
+	void	impl_buf_mul_val(Comp *dst, Comp const *buf, Comp val, int count);
+
+	void	impl_ref(Comp *m, short dx, short dy);
+	void	impl_rref(Comp *m, short dx, short dy);
+	Comp	impl_det(Comp *m, int dx);//m is destroyed
+	void	impl_matinv(Comp *m, short dx);//resize m to (dy * 2dx) temporarily,		dx==dy always
+	void	impl_matmul(Comp *dst, const Comp *A, const Comp *B, int h1, int w1h2, int w2);
+	void	impl_transpose(Comp *dst, const Comp *src, int src_dx, int src_dy);
+	void	impl_tensor(Comp *dst, const Comp *m1, const Comp *m2, int dx1, int dy1, int dx2, int dy2);
+	void	impl_matdiv(Comp *dst, const Comp *num, Comp *den, int num_dy, int dx);		//dst & num: num_dy*dx,  den: dx*(dx*2)		den is destroyed
+	void	impl_matdiv_back(Comp *dst, Comp *den, const Comp *num, int dy, int num_dx);	//den: dy*(dy*2),  dst & num: dy*num_dx		den is destroyed
+	void	impl_matpow(Comp *dst, Comp *m1, int e, int dx);//dst: dx*dx,  m1: dx*(dx*2)		calculates m1^e,	m1 is destroyed
 	
-	void	impl_polmul(double *res, double const *A, double const *B, int asize, int bsize, int add);//res has correct size of (asize+bsize-1)
+	void	impl_polmul(Comp *res, Comp const *A, Comp const *B, int asize, int bsize, int add);//res has correct size of (asize+bsize-1)
 }
 
 
@@ -130,15 +136,17 @@ struct		StringLibrary
 };
 extern StringLibrary strings;
 
-struct		Matrix//12+4 bytes
+//#define		RDATA(DX, KX, KY)	data[(((DX)*(KY)+(KX))<<1)]
+//#define		IDATA(DX, KX, KY)	data[(((DX)*(KY)+(KX))<<1)+1]
+struct		Matrix//8+4 bytes
 {
-	TokenType type;
+	//TokenType type;
 	unsigned short dx, dy;
-	double *data;//complex numbers are interleaved
+	Comp *data;//complex numbers are interleaved
 	char *name;//freed by StringLibrary
-	Matrix():type(T_IGNORED), dx(0), dy(0), data(nullptr), name(nullptr){}
-	Matrix(Matrix const &other):type(other.type), dx(other.dx), dy(other.dy), data(other.data), name(other.name){}
-	Matrix(Matrix &&other):type(other.type), dx(other.dx), dy(other.dy), data(other.data), name(other.name)
+	Matrix():dx(0), dy(0), data(nullptr), name(nullptr){}
+	Matrix(Matrix const &other):dx(other.dx), dy(other.dy), data(other.data), name(other.name){}
+	Matrix(Matrix &&other):dx(other.dx), dy(other.dy), data(other.data), name(other.name)
 	{
 #ifdef DEBUG_MEMORY
 		const char file[]=__FILE__;
@@ -153,7 +161,7 @@ struct		Matrix//12+4 bytes
 		const char file[]=__FILE__;
 #endif
 		if(data)
-			free(data);
+			CFREE(data);
 #ifdef DEBUG_MEMORY
 		if(syscall_count==60)
 			syscall_count=syscall_count;
@@ -166,13 +174,13 @@ struct		Matrix//12+4 bytes
 #endif
 		if(this!=&other)
 		{
-			type=other.type;
+			//type=other.type;
 			dx=other.dx;
 			dy=other.dy;
 			if(data)
-				free(data);
+				CFREE(data);
 			int count=dx*dy;
-			DALLOC(data, dx*dy);
+			CALLOC(data, dx*dy);
 			//data=(double*)malloc(bytesize);
 			memcpy(data, other.data, count*sizeof(double));
 			name=other.name;
@@ -186,11 +194,11 @@ struct		Matrix//12+4 bytes
 #endif
 		if(this!=&other)
 		{
-			type=other.type;
+			//type=other.type;
 			dx=other.dx;
 			dy=other.dy;
 			if(data)
-				free(data);
+				CFREE(data);
 			data=other.data;
 			name=other.name;
 			MEMZERO(Matrix, &other, 1);
@@ -209,12 +217,10 @@ struct		Matrix//12+4 bytes
 		//	printf("%s =\n", name);
 		if(dx==1&&dy==1)//scalar
 		{
-			if(type==T_REAL)
-				printf("%4g\n", *data);
-			else//complex scalar
-			{
-				printf("%4g + j%4g\n", data[0], data[1]);
-			}
+			if(data->i)//complex scalar
+				printf("%4g + i%4g\n", data->r, data->i);
+			else
+				printf("%4g\n", data->r);
 		}
 		else//matrix
 		{
@@ -223,10 +229,12 @@ struct		Matrix//12+4 bytes
 			{
 				for(int kx=0;kx<dx;++kx)
 				{
-					if(type==T_REAL)
-						printf("%4g", data[dx*ky+kx]);
+					auto &z=data[dx*ky+kx];
+					//auto &r=RDATA(dx, kx, ky), &i=IDATA(dx, kx, ky);
+					if(z.i)
+						printf("%4g + i%4g", z.r, z.i);
 					else
-						printf("%4g + j%4g", data[2*(dx*ky+kx)], data[2*(dx*ky+kx)+1]);
+						printf("%4g", z.r);
 					if(kx<dx-1)
 						printf(",");
 				}
@@ -236,29 +244,34 @@ struct		Matrix//12+4 bytes
 			printf("\n]\n");
 		}
 	}
-	void reset()
-	{
-		type=T_IGNORED;
-		dx=0, dy=0;
-		data=nullptr;
-		name=nullptr;
-	}
 	void move2temp(Matrix &m)//to be used on temp matrices (eg: 2*x, x looses its name)
 	{
 		if(this!=&m)
 		{
-			type=m.type;
+			//type=m.type;
 			dx=m.dx;
 			dy=m.dy;
 			if(data)
-				free(data);
+				CFREE(data);
 			data=m.data;
 			name=nullptr;
 			MEMZERO(Matrix, &m, 1);
 		}
 	}
+	Comp&		get(int kx, int ky)		{return data[dx*ky+kx];}
+	Comp const& get(int kx, int ky)const{return data[dx*ky+kx];}
+	Comp*		end()		{return data+dx*dy;}
+	Comp const*	end()const	{return data+dx*dy;}
+	//void reset()
+	//{
+	//	type=T_IGNORED;
+	//	dx=0, dy=0;
+	//	data=nullptr;//data=nullptr? memory leak
+	//	name=nullptr;
+	//}
 	//void setmemzero(){MEMZERO(Matrix, this, 1);}//only use at move operation
 };
+#define		GET(DATA, DX, KX, KY)	DATA[(DX)*(KY)+(KX)]
 void		print_help();
 bool		get_str_from_file(std::string &str);
 
