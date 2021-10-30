@@ -14,11 +14,12 @@
 //You should have received a copy of the GNU General Public License
 //along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-#include	"mc2.h"
 #include	<stdio.h>
 #include	<conio.h>
 #include	<string>
 #include	<iostream>
+#include	"mc2.h"
+const char	file[]=__FILE__;
 extern const int	g_buf_size=G_BUF_SIZE;
 char				g_buf[G_BUF_SIZE]={0};
 char		gfmode=0;//later

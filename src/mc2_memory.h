@@ -29,14 +29,16 @@
 #define		free(POINTER)							d_free(file, __LINE__, POINTER)
 
 #define		_aligned_malloc(SIZE, ALIGN)			d_aligned_alloc(file, __LINE__, SIZE, ALIGN)
-#define		_aligned_realloc(POINTER, SIZE, ALIGN)	d_aligned_realloc(file, __LINE__, POINTER, SIZE)
+#define		_aligned_realloc(POINTER, SIZE, ALIGN)	d_aligned_realloc(file, __LINE__, POINTER, SIZE, ALIGN)
 #define		_aligned_free(POINTER)					d_aligned_free(file, __LINE__, POINTER)
 
 #define		memcpy(DST, SRC, SIZE)					d_memcpy(file, __LINE__, DST, SRC, SIZE)
 #define		memmove(DST, SRC, SIZE)					d_memmove(file, __LINE__, DST, SRC, SIZE)
 #define		memset(DST, VAL, SIZE)					d_memset(file, __LINE__, DST, VAL, SIZE)
+#ifdef __cplusplus
 extern "C"
 {
+#endif
 	extern int	syscall_count, emergency_flag;
 	void*	d_alloc				(const char *file, int line, size_t bytesize);
 	void*	d_realloc			(const char *file, int line, void *p, size_t bytesize);
@@ -49,10 +51,15 @@ extern "C"
 	void	d_memset			(const char *file, int line, void *dst, int val, size_t bytesize);
 	void	d_memcpy			(const char *file, int line, void *dst, const void *src, size_t bytesize);
 	void	d_memmove			(const char *file, int line, void *dst, const void *src, size_t bytesize);
+#ifdef __cplusplus
 }
+#endif
 #endif
 static void	memfill(void *dst, const void *src, size_t dstbytes, size_t srcbytes)
 {
+#ifdef DEBUG_MEMORY
+	const char file[]=__FILE__;
+#endif
 	unsigned copied;
 	char *d=(char*)dst;
 	const char *s=(const char*)src;

@@ -14,13 +14,13 @@
 //You should have received a copy of the GNU General Public License
 //along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-#include	"mc2.h"
 #include	"mc2_aligned_vector.h"
 #include	<string.h>
 #include	<tmmintrin.h>
 #include	<assert.h>
 #include	<vector>
 #include	<algorithm>
+#include	"mc2.h"
 const char	file[]=__FILE__;
 const char	*keywords[]=
 {

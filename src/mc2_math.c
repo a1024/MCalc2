@@ -14,12 +14,13 @@
 //You should have received a copy of the GNU General Public License
 //along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-#include	"mc2_memory.h"
 #include	<stdio.h>
 #include	<stdlib.h>
 #include	<string.h>
 #include	<math.h>
 #include	<tmmintrin.h>
+#include	"mc2_memory.h"
+static const char file[]=__FILE__;
 int			maximum(int a, int b){return a>b?a:b;}
 int			minimum(int a, int b){return a<b?a:b;}
 int			clamp(int lo, int x, int hi)
@@ -317,7 +318,7 @@ void		impl_ref(Comp *m, short dx, short dy)
 	{
 		for(ky=it;ky<dy;++ky)//find pivot
 		{
-			if(c_abs2(m+((dx*ky+it)<<1))>1e-10)
+			if(c_abs2(m+dx*ky+it)>1e-10)
 			{
 #ifdef _DEBUG
 				pivot=m[dx*ky+it];
@@ -356,7 +357,7 @@ void		impl_rref(Comp *m, short dx, short dy)
 	{
 		for(ky=it;ky<dy;++ky)//find pivot
 		{
-			if(c_abs2(m+((dx*ky+it)<<1))>1e-10)
+			if(c_abs2(m+dx*ky+it)>1e-10)
 			{
 #ifdef _DEBUG
 				pivot=m[dx*ky+it];
@@ -438,14 +439,14 @@ void		impl_matmul(Comp *dst, const Comp *m1, const Comp *m2, int h1, int w1h2, i
 {
 	int kx, ky, kv;
 	Comp *C, temp;
-#ifdef DEBUG_MEMORY
-	printf("impl_matmul():\n");
-	print_matrix_debug(dst, w2, h1);
-	printf("  =\n");
-	print_matrix_debug(A, w1h2, h1);
-	printf("  *\n");
-	print_matrix_debug(B, w2, w1h2);
-#endif
+//#ifdef DEBUG_MEMORY
+//	printf("impl_matmul():\n");
+//	print_matrix_debug(dst, w2, h1);
+//	printf("  =\n");
+//	print_matrix_debug(m1, w1h2, h1);
+//	printf("  *\n");
+//	print_matrix_debug(m2, w2, w1h2);
+//#endif
 	for(ky=0;ky<h1;++ky)
 	{
 		for(kx=0;kx<w2;++kx)

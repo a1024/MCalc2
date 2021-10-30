@@ -16,10 +16,10 @@
 
 #ifndef MC2_H
 #define MC2_H
-#include	"mc2_memory.h"
 #include	<vector>
 #include	<string>
 #include	<map>
+#include	"mc2_memory.h"
 
 //mc2_system.c
 extern "C"
@@ -218,10 +218,12 @@ struct		Matrix//8+4 bytes
 		//	printf("%s =\n", name);
 		if(dx==1&&dy==1)//scalar
 		{
-			if(data->i)//complex scalar
+			if(abs(data->i)>1e-10)//complex scalar
 				printf("%4g+%4gi\n", data->r, data->i);
-			else
+			else if(abs(data->r)>1e-10)
 				printf("%4g\n", data->r);
+			else
+				printf("   0\n");
 		}
 		else//matrix
 		{
@@ -232,10 +234,12 @@ struct		Matrix//8+4 bytes
 				{
 					auto &z=data[dx*ky+kx];
 					//auto &r=RDATA(dx, kx, ky), &i=IDATA(dx, kx, ky);
-					if(z.i)
+					if(abs(z.i)>1e-10)
 						printf("%4g+%4gi", z.r, z.i);
-					else
+					else if(abs(z.r)>1e-10)
 						printf("%4g", z.r);
+					else
+						printf("   0");
 					if(kx<dx-1)
 						printf(",");
 				}
@@ -247,6 +251,9 @@ struct		Matrix//8+4 bytes
 	}
 	void move2temp(Matrix &m)//to be used on temp matrices (eg: 2*x, x looses its name)
 	{
+#ifdef DEBUG_MEMORY
+		const char file[]=__FILE__;
+#endif
 		if(this!=&m)
 		{
 			//type=m.type;

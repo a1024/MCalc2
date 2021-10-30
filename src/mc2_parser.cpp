@@ -14,11 +14,11 @@
 //You should have received a copy of the GNU General Public License
 //along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-#include	"mc2.h"
 #include	<stdarg.h>
 #include	<map>
 #include	<math.h>
-static const char file[]=__FILE__;
+#include	"mc2.h"
+const char	file[]=__FILE__;
 
 std::vector<Matrix> g_answers;
 std::map<char*, Matrix> g_vars;
@@ -1003,7 +1003,7 @@ bool		r_unary(Matrix &m, bool space_sensitive)
 				return false;
 			if(!r_postfix(m, space_sensitive))
 				return false;
-			for(int k=0, size=m.dx*m.dy*2;k<size;++k)
+			for(int k=0, size=m.dx*m.dy;k<size;++k)
 			{
 				m.data[k].r=-m.data[k].r;
 				m.data[k].i=-m.data[k].i;
