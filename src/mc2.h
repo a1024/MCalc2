@@ -182,7 +182,8 @@ struct		Matrix//8+4 bytes
 			int count=dx*dy;
 			CALLOC(data, dx*dy);
 			//data=(double*)malloc(bytesize);
-			memcpy(data, other.data, count*sizeof(double));
+			CMEMCPY(data, other.data, count);
+			//memcpy(data, other.data, count*sizeof(double));
 			name=other.name;
 		}
 		return *this;
@@ -218,7 +219,7 @@ struct		Matrix//8+4 bytes
 		if(dx==1&&dy==1)//scalar
 		{
 			if(data->i)//complex scalar
-				printf("%4g + i%4g\n", data->r, data->i);
+				printf("%4g+%4gi\n", data->r, data->i);
 			else
 				printf("%4g\n", data->r);
 		}
@@ -232,7 +233,7 @@ struct		Matrix//8+4 bytes
 					auto &z=data[dx*ky+kx];
 					//auto &r=RDATA(dx, kx, ky), &i=IDATA(dx, kx, ky);
 					if(z.i)
-						printf("%4g + i%4g", z.r, z.i);
+						printf("%4g+%4gi", z.r, z.i);
 					else
 						printf("%4g", z.r);
 					if(kx<dx-1)

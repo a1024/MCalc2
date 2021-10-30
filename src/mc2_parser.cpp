@@ -592,6 +592,7 @@ bool		r_postfix(Matrix &m, bool space_sensitive)//pre-allocated
 		switch(lex_get(space_sensitive))
 		{
 		case T_TRANSPOSE:
+			m.name=nullptr;
 			if(m.dx!=1||m.dy!=1)
 			{
 				Comp *data=m.data;
@@ -614,11 +615,11 @@ bool		r_postfix(Matrix &m, bool space_sensitive)//pre-allocated
 				//		for(int k=0;k<ncomp;++k)
 				//			m.data[ncomp*(m.dx*ky+kx)+k]=data[ncomp*(m.dy*kx+ky)+k];
 				CFREE(data);
-				m.name=nullptr;
 			}
 			continue;
-		case T_LBRACKET:
+		case T_LBRACKET://member access
 			{
+				m.name=nullptr;
 				Matrix m2;
 				if(!r_assign_expr(m2, false))
 					return false;
@@ -652,6 +653,7 @@ bool		r_postfix(Matrix &m, bool space_sensitive)//pre-allocated
 			continue;
 		case T_POWER:
 			{
+				m.name=nullptr;
 				Matrix m2;
 				if(!r_unary(m2, space_sensitive))
 					return false;
@@ -790,7 +792,7 @@ bool		r_unary(Matrix &m, bool space_sensitive)
 					return user_error2(idx0, idx, "Expected a square matrix");
 				CREALLOC(m.data, m.data, m.dx*m.dy*2);
 				//m.data=(double*)realloc(m.dx*m.dy*sizeof(double));
-				impl_det(m.data, m.dx);
+				*m.data=impl_det(m.data, m.dx);
 				m.dx=m.dy=1;
 				CREALLOC(m.data, m.data, m.dx*m.dy);
 				break;

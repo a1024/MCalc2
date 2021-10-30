@@ -177,7 +177,7 @@ double		_10pow(int n)
 
 
 //complex functions
-void		print_matrix_debug(const double *data, int w, int h)
+void		print_matrix_debug(const Comp *data, int w, int h)
 {
 	int kx, ky;
 
@@ -185,7 +185,7 @@ void		print_matrix_debug(const double *data, int w, int h)
 	for(ky=0;ky<h;++ky)
 	{
 		for(kx=0;kx<w;++kx)
-			printf("%4g + i%4g", data[(w*ky+kx)<<1], data[((w*ky+kx)<<1)+1]);
+			printf("%4g+%4gi", data[w*ky+kx].r, data[w*ky+kx].i);
 		printf("\n");
 	}
 	printf("\n");
@@ -402,7 +402,10 @@ Comp		impl_det(Comp *m, int dx)//m is destroyed
 {
 	int k, dxplus1=dx+1;
 	Comp result;
+
+	//print_matrix_debug(m, dx, dx);//
 	impl_ref(m, dx, dx);
+	//print_matrix_debug(m, dx, dx);//
 
 	result=m[0];//accumulate diagonal
 	for(k=1;k<dx;++k)
