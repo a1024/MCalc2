@@ -9,7 +9,9 @@ Syntax:
     [a2 a1 a0] or [a2, a1, a0] is a row vector
     [a11, a12;  a21, a22]      is a 2x2 matrix
   Use same square brackets to access matrix elements, for example:
-    [1 2; 3 4][0][1] evaluate to 2
+    [1 2; 3 4][0][1] == 2
+  or use parentheses (index starts at one):
+    [1 2; 3 4](1,2) == 2
   Nested matrices and/or polynomials are not supported yet.
   Variable names can be up to 16 characters.
   Multiplication asterix '*' is always obligatory.
