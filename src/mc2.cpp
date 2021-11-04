@@ -38,26 +38,28 @@ void		print_help()
 		"    [a11, a12;  a21, a22]      is a 2x2 matrix\n"
 		"  Use same square brackets to access matrix elements, for example:\n"
 		"    [1 2; 3 4][0][1] evaluate to 2\n"
-	//	"  For multiline statements:\n"
+	//	"  For multiline statements:\n"//TODO
 	//	"    Open a parenthesis at the start of the first command, and close it at the\n"
 	//	"    end of the last command.\n"
 		"  Nested matrices and/or polynomials are not supported yet.\n"
 		"  Variable names can be up to 16 characters.\n"//
 		"  Multiplication asterix \'*\' is always obligatory.\n"
+	//	"  Tensors up to 2D are supported.\n"
 		"\n"
 		"Operators by precedence (first to last):\n"
-		"  ^\n"
+		"  function call, parentheses, square brackets\n"
+		"  \', ^, member access\n"
 		"  + - (unary)\n"
-		"  \'\n"
-		"  / \\ % * o ./ .* - +\n"
+		"  * o / \\ % .* ./\n"
+		"  + -\n"
+		"  :\n"
+		"  < <= > >=\n"
+		"  == !=\n"
 		"  = += -= *= /= \\= %%=\n"
-		"  ,\n"
-		"  ; [ ] ( )\n"
 		"Notes:\n"
 		"  \'     is transpose (eg: M\')\n"
 		"  o     is the tensor product\n"
 		"  \\     is for square matrices (eg: A\\B)\n"
-	//	"  %%     makes fraction objects (eg: F=num%%den)\n"//X  it's the modulus operator
 		"  .* ./ are element-wise operations\n"
 		"\n"
 		"Keywords:\n"
@@ -130,9 +132,8 @@ int			main(int argc, const char **argv)
 	set_console_buffer_size(80, 9001);
 	printf("MCALC%s\n\n", argc==2?"":"\t\tCtrl C to exit.");
 
-	print_help();//
-
 	std::string str;
+	bool quit_prompt=false;
 	if(argc>2)
 	{
 		printf(
@@ -151,9 +152,13 @@ int			main(int argc, const char **argv)
 	{
 		str=argv[1];
 		printf("> %s\n\n", argv[1]);
+		quit_prompt=true;
 	}
 	else
+	{
+		print_help();//
 		get_str_interactive(str, 0);
+	}
 
 	for(int result=SOLVE_OK;;)
 	{
@@ -184,7 +189,19 @@ int			main(int argc, const char **argv)
 				printf("ans(%d) =\n", g_answers.size()-1);
 			ans.print();
 		}
+		//if(quit_prompt)
+		//	break;
+		if(quit_prompt)//
+		{
+			printf("Quit? [Y/N] ");
+			char c=_getche();
+			if((c&0xDF)=='Y')
+				break;
+			quit_prompt=false;
+		}
 
 		get_str_interactive(str, 0);
 	}
+	strings.clear();
+	return 0;
 }

@@ -34,6 +34,7 @@ extern "C"
 {
 	int		maximum(int a, int b);
 	int		minimum(int a, int b);
+	int		clamp(int lo, int x, int hi);
 	int		mod(int x, int n);
 	int		first_set_bit(unsigned long long n);//idx of LSB
 	int		first_set_bit16(unsigned short n);//idx of LSB
@@ -136,12 +137,19 @@ struct		StringLibrary
 };
 extern StringLibrary strings;
 
-//#define		RDATA(DX, KX, KY)	data[(((DX)*(KY)+(KX))<<1)]
-//#define		IDATA(DX, KX, KY)	data[(((DX)*(KY)+(KX))<<1)+1]
+enum		MatrixFlags
+{
+	M_UNSPECIFIED_RANGE	=0x00000001,
+	M_SCALAR			=0x00010001,
+};
 struct		Matrix//8+4 bytes
 {
 	//TokenType type;
-	unsigned short dx, dy;
+	union
+	{
+		unsigned flags;
+		struct{unsigned short dx, dy;};
+	};
 	Comp *data;//complex numbers are interleaved
 	char *name;//freed by StringLibrary
 	Matrix():dx(0), dy(0), data(nullptr), name(nullptr){}
@@ -216,7 +224,7 @@ struct		Matrix//8+4 bytes
 		}
 		//if(name)
 		//	printf("%s =\n", name);
-		if(dx==1&&dy==1)//scalar
+		if(flags==M_SCALAR)
 		{
 			if(abs(data->i)>1e-10)//complex scalar
 				printf("%4g+%4gi\n", data->r, data->i);
@@ -270,6 +278,14 @@ struct		Matrix//8+4 bytes
 	Comp const& get(int kx, int ky)const{return data[dx*ky+kx];}
 	Comp*		end()		{return data+dx*dy;}
 	Comp const*	end()const	{return data+dx*dy;}
+	void alloc_ramp(short dx, short dy)
+	{
+		this->dy=dy, this->dx=dx;
+		int size=dy*dx;
+		CALLOC(data, size);
+		for(int k=0;k<size;++k)
+			data[k].r=k, data[k].i=0;
+	}
 	//void reset()
 	//{
 	//	type=T_IGNORED;

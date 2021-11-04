@@ -15,13 +15,15 @@ Syntax:
   Multiplication asterix '*' is always obligatory.
 
 Operators by precedence (first to last):
-  ^
+  function call, parentheses, square brackets
+  ', ^, member access
   + - (unary)
-  '
-  / \  o ./ .* - +
+  * o / \  ./
+  + -
+  :
+  < <= > >=
+  == !=
   = += -= *= /= \= %=
-  ,
-  ; [ ] ( )
 Notes:
   '     is transpose (eg: M')
   o     is the tensor product

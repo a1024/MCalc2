@@ -21,7 +21,7 @@ TOKEN("cot", T_COT) TOKEN("acot", T_ACOT) TOKEN("cotd", T_COTD) TOKEN("acotd", T
 
 //operators
 TOKEN("\'", T_TRANSPOSE)//unary postfix
-TOKEN("^", T_POWER)
+TOKEN("^", T_POWER) TOKEN(":", T_COLON)
 TOKEN("*", T_MUL) TOKEN("o", T_TENSOR) TOKEN("/", T_DIV) TOKEN("\\", T_DIV_BACK) TOKEN("%", T_MOD)
 TOKEN(".*", T_MUL_EW) TOKEN("./", T_DIV_EW)//matrix-matrix element-wise operations
 TOKEN("+", T_PLUS) TOKEN("-", T_MINUS)//can be unary		binary: if one is scalar then element-wise

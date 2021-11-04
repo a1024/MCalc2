@@ -22,6 +22,9 @@
 //	#define	DEBUG_MEMORY
 
 
+#ifdef _MSC_VER
+#define		scanf	scanf_s
+#endif
 #ifdef DEBUG_MEMORY
 #include	<conio.h>
 #define		malloc(SIZE)							d_alloc(file, __LINE__, SIZE)

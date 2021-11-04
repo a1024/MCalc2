@@ -17,6 +17,7 @@
 #include	<stdarg.h>
 #include	<map>
 #include	<math.h>
+//#include	<conio.h>
 #include	"mc2.h"
 const char	file[]=__FILE__;
 
@@ -364,6 +365,12 @@ inline void c_acoth(Comp &z)
 	c_inv(&z, &z);
 	c_atan(z);
 }
+inline bool	check_scalar(Matrix &m, int idx0)
+{
+	if(m.dx!=1||m.dy!=1)
+		return user_error2(idx0, idx, "Expected a scalar");
+	return true;
+}
 inline bool	get_int(Matrix &m, int idx0, int &i)
 {
 	if(m.dx!=1||m.dy!=1)
@@ -451,12 +458,12 @@ inline bool	obj_sub(Matrix &m, Matrix &m2, int idx0)
 }
 inline bool	obj_mul(Matrix &m, Matrix &m2, int idx0)
 {
-	if(m2.dx==1&&m2.dy==1)//multiplication by scalar
+	if(m2.flags==M_SCALAR)//multiplication by scalar
 	{
 		for(int k=0, size=m.dy*m.dx;k<size;++k)
 			c_mul(m.data+k, m.data+k, m2.data);
 	}
-	else if(m.dx==1&&m.dy==1)//multiplication by scalar
+	else if(m.flags==M_SCALAR)//multiplication by scalar
 	{
 		for(int k=0, size=m2.dy*m2.dx;k<size;++k)
 			c_mul(m2.data+k, m2.data+k, m.data);
@@ -525,6 +532,7 @@ int			parse_incomplete=false;
 //	prefix				-a		+a
 //	multicplicative		a*b		a o b	a/b		a\b		a%b		a.*b	a./b
 //	additive			a+b		a-b
+//	range				a:b
 //	relational			a<b		a<=b	a>b		a>=b
 //	equality			a==b	a!=b
 //	assignment			a=b		a+=b	a-=b	a*=b	a/=b	a%=b
@@ -617,38 +625,137 @@ bool		r_postfix(Matrix &m, bool space_sensitive)//pre-allocated
 				CFREE(data);
 			}
 			continue;
-		case T_LBRACKET://member access
+		case T_LPR://Matlab-style subscript
 			{
 				m.name=nullptr;
-				Matrix m2;
-				if(!r_assign_expr(m2, false))
+				if(m.flags==M_UNSPECIFIED_RANGE)
+					return user_error2(idx0, idx, "Expected a matrix, got an unspecified range");
+				Matrix mky, mkx;
+				if(!r_assign_expr(mky, false))
 					return false;
-				if(lex_get(space_sensitive)!=T_RBRACKET)
+				idx0=idx;
+				if(lex_get(false)==T_COMMA)
+				{
+					if(!r_assign_expr(mkx, false))
+						return false;
+				}
+				else
+				{
+					idx0=idx;
+					if(m.dy==1)
+					{
+						mkx.move2temp(mky);
+						mky.flags=M_UNSPECIFIED_RANGE;
+					}
+					else
+						mkx.flags=M_UNSPECIFIED_RANGE;
+				}
+				if(lex_get(false)!=T_RPR)
+					return user_error2(idx0, idx, "Expected a closing parenthesis \')\'");
+				
+				if(mky.flags==M_UNSPECIFIED_RANGE)
+					mky.alloc_ramp(1, m.dy);
+				else
+				{
+					if(mky.dx>1&&mky.dy>1)
+						return user_error2(idx0, idx, "Expected a vector");
+					if(mky.dx>1)
+						std::swap(mky.dx, mky.dy);
+				}
+				if(mkx.flags==M_UNSPECIFIED_RANGE)
+					mkx.alloc_ramp(m.dx, 1);
+				else
+				{
+					if(mkx.dx>1&&mkx.dy>1)
+						return user_error2(idx0, idx, "Expected a vector");
+					if(mkx.dy>1)
+						std::swap(mkx.dx, mkx.dy);
+				}
+				auto CALLOC(temp, mky.dy*mkx.dx);
+				for(int ky=0;ky<mky.dy;++ky)
+				{
+					auto val=&mky.get(0, ky);
+					if(abs(val->i)>1e-10)
+					{
+						CFREE(temp);
+						return user_error2(idx0, idx, "Expected an index, got a complex number ky[%d] = %g + %gi", ky, val->r, val->i);
+					}
+					int ky2=clamp(0, (int)floor(val->r+0.5)-1, m.dy-1);
+					for(int kx=0;kx<mkx.dx;++kx)
+					{
+						val=&mkx.get(kx, 0);
+						if(abs(val->i)>1e-10)
+						{
+							CFREE(temp);
+							return user_error2(idx0, idx, "Expected an index, got a complex number kx[%d] = %g + %gi", kx, val->r, val->i);
+						}
+						int kx2=clamp(0, (int)floor(val->r+0.5)-1, m.dx-1);
+						temp[mkx.dx*ky+kx]=m.data[m.dx*ky2+kx2];
+					}
+				}
+				m.dx=mkx.dx, m.dy=mky.dy;
+				CFREE(m.data);
+				m.data=temp;
+			/*	Comp *temp=nullptr;
+				if(m.dy>1)//select/permute rows		[r1; r2; r3]([2 1]) == [r2; r1]
+				{
+					CALLOC(temp, mky.dy*m.dx);
+					for(int ky=0;ky<mky.dy;++ky)
+					{
+						for(int kx=0;kx<mky.dx;++kx)
+						{
+							auto &val=mky.get(kx, ky);
+							if(abs(val.i)>1e-10)
+							{
+								CFREE(temp);
+								return user_error2(idx0, idx, "Expected an index, got a complex number at [ky=%d][kx=%d]", ky, kx);
+							}
+							int idx=(int)floor(val.r+0.5);
+
+							temp[mky.dx*ky+kx]=
+						}
+					}
+				}
+				else//select/permute columns		[c1 c2 c3]([2 1]) == [c2 c1]
+				{
+				}//*/
+			}
+			continue;
+		case T_LBRACKET://C-style subscript
+			{
+				m.name=nullptr;
+				if(m.flags==M_UNSPECIFIED_RANGE)
+					return user_error2(idx0, idx, "Expected a matrix, got an unspecified range");
+				Matrix midx;
+				if(!r_assign_expr(midx, false))
+					return false;
+				if(lex_get(false)!=T_RBRACKET)
 					return user_error2(idx0, idx, "Expected a closing bracket \']\'");
-				int a_idx=0;
-				if(!get_int(m2, idx0, a_idx))
-					return false;
-				//if(m2.dx!=1||m2.dy!=1)
-				//	return user_error2(idx0, idx, "Expected a scalar");
-				//int a_idx=(int)floor(m2.data[0]+0.5);
-				if(a_idx<0)
-					a_idx=0;
-				if(m.dy>1)//select row
+
+				if(midx.flags==M_SCALAR)
 				{
-					if(a_idx>=m.dy)//TODO: out-of-bounds error?
-						a_idx=m.dy-1;
-					if(a_idx)
-						CMEMCPY(m.data, m.data+m.dx*a_idx, m.dx);
-					m.dy=1;
+					int a_idx=0;
+					if(!get_int(midx, idx0, a_idx))
+						return false;
+					if(a_idx<0)
+						a_idx=0;
+					if(m.dy>1)//select row
+					{
+						if(a_idx>=m.dy)//TODO: out-of-bounds error?
+							a_idx=m.dy-1;
+						if(a_idx)
+							CMEMCPY(m.data, m.data+m.dx*a_idx, m.dx);
+						m.dy=1;
+					}
+					else//select column
+					{
+						if(a_idx>=m.dx)
+							a_idx=m.dx-1;
+						m.data[0]=m.data[a_idx];
+						m.dx=1;
+					}
+					CREALLOC(m.data, m.data, m.dx*m.dy);
 				}
-				else//select column
-				{
-					if(a_idx>=m.dx)
-						a_idx=m.dx-1;
-					m.data[0]=m.data[a_idx];
-					m.dx=1;
-				}
-				CREALLOC(m.data, m.data, m.dx*m.dy);
 			}
 			continue;
 		case T_POWER:
@@ -1135,7 +1242,7 @@ bool		r_multiplicative(Matrix &m, bool space_sensitive)
 				Matrix m2;
 				if(!r_unary(m2, space_sensitive))
 					return false;
-				if(m.dx==1&&m.dy==1)//multiplication by scalar
+				if(m.flags==M_SCALAR)//multiplication by scalar
 				{
 					for(int k=0, size=m2.dy*m2.dx;k<size;++k)
 						c_mul(m2.data+k, m2.data+k, m.data);
@@ -1174,13 +1281,13 @@ bool		r_multiplicative(Matrix &m, bool space_sensitive)
 				Matrix m2;
 				if(!r_unary(m2, space_sensitive))
 					return false;
-				if(m2.dx==1&&m2.dy==1)//multiplication by scalar
+				if(m2.flags==M_SCALAR)//multiplication by scalar
 				{
 					for(int k=0, size=m.dy*m.dx;k<size;++k)
 						c_mul(m.data+k, m.data+k, m2.data);
 						//m.data[k]*=m2.data[0];
 				}
-				else if(m.dx==1&&m.dy==1)//multiplication by scalar
+				else if(m.flags==M_SCALAR)//multiplication by scalar
 				{
 					for(int k=0, size=m2.dy*m2.dx;k<size;++k)
 						c_mul(m2.data+k, m2.data+k, m.data);
@@ -1203,13 +1310,13 @@ bool		r_multiplicative(Matrix &m, bool space_sensitive)
 				Matrix m2;
 				if(!r_unary(m2, space_sensitive))
 					return false;
-				if(m2.dx==1&&m2.dy==1)//division by scalar
+				if(m2.flags==M_SCALAR)//division by scalar
 				{
 					for(int k=0, size=m.dy*m.dx;k<size;++k)
 						c_div(m.data+k, m.data+k, m2.data);
 						//m.data[k]/=m2.data[0];
 				}
-				else if(m.dx==1&&m.dy==1)//element-wise division of scalar by matrix
+				else if(m.flags==M_SCALAR)//element-wise division of scalar by matrix
 				{
 					for(int k=0, size=m2.dy*m2.dx;k<size;++k)
 						c_div(m2.data+k, m.data, m2.data+k);
@@ -1267,9 +1374,126 @@ bool		r_additive(Matrix &m, bool space_sensitive)
 	}
 	return true;
 }
+bool		r_range(Matrix &m, bool space_sensitive)
+{
+	int idx0=idx;
+	if(lex_get(space_sensitive)==T_COLON)
+	{
+		m.flags=M_UNSPECIFIED_RANGE;
+		return true;
+	}
+	idx=idx0;
+	if(!r_additive(m, space_sensitive))
+		return false;
+	for(;;)
+	{
+		idx0=idx;
+		switch(lex_get(space_sensitive))
+		{
+		case T_COLON://range
+			{
+				auto &mstart=m;
+				Matrix mstep, mend;
+				if(!check_scalar(mstart, idx0))
+					return false;
+				idx0=idx;
+				if(!r_additive(mend, space_sensitive))
+					return false;
+				if(!check_scalar(mend, idx0))
+					return false;
+				idx0=idx;
+				if(lex_get(space_sensitive)==T_COLON)
+				{
+					mstep.move2temp(mend);
+					if(!r_additive(mend, space_sensitive))
+						return false;
+					if(!check_scalar(mend, idx0))
+						return false;
+				}
+				else
+				{
+					idx=idx0;
+					mstep.dx=1, mstep.dy=1;
+					CALLOC(mstep.data, 1);
+					mstep.data->r=1, mstep.data->i=0;
+				}
+				int guard=1000, size=0;
+				auto &start=mstart.data[0], &step=mstep.data[0], &end=mend.data[0];
+				Comp x=start;
+				double dummy0=0, dummy1=1;
+				double *rleft=&dummy0, *rright=&dummy1, *ileft=&dummy0, *iright=&dummy1;//in-loop <= comparisons
+				//sign check
+				if(start.r<end.r)
+				{
+					if(step.r<0)
+						return user_error2(idx0, idx, "Wrong step sign: step.r < 0");
+					rleft=&x.r, rright=&end.r;
+				}
+				else if(start.r>end.r)
+				{
+					if(step.r>0)
+						return user_error2(idx0, idx, "Wrong step sign: step.r > 0");
+					rleft=&end.r, rright=&x.r;
+				}
+				//else//start.r==end.r
+				//{
+				//}
+				if(start.i<end.i)
+				{
+					if(step.i<0)
+						return user_error2(idx0, idx, "Wrong step sign: step.i < 0");
+					ileft=&x.i, iright=&end.i;
+				}
+				else if(start.i>end.i)
+				{
+					if(step.i>0)
+						return user_error2(idx0, idx, "Wrong step sign: step.i > 0");
+					ileft=&end.i, iright=&x.i;
+				}
+				//else//start.i==end.i
+				//{
+				//}
+				if(start.r==end.r&&start.i==end.i)
+				{
+					if(!step.r&&!step.i)
+						step.r=1;
+					rleft=&x.r, rright=&end.r;
+					ileft=&x.i, iright=&end.i;
+				}
+				if(!step.r&&!step.i)//TODO: better check for infinite loop
+					return user_error2(idx0, idx, "Range step = 0");
+				if(step.r)
+					size=(int)floor((end.r-start.r)/step.r)+1;
+				if(step.i)
+				{
+					int size2=(int)floor((end.i-start.i)/step.i)+1;
+					if(size>size2)
+						size=size2;
+				}
+				if(size>guard)
+				{
+					//display warning [y/n]
+					printf("\nWarning: allocating a range of %d values (max is %d). Proceed? [Y/N] ", size, guard);
+					char c=0;
+					scanf("%c", &c);
+					if((c&0xDF)!='Y')
+						return false;
+				}
+				CREALLOC(m.data, m.data, size);
+				m.dx=size, m.dy=1;
+				for(int k=0;k<size&&*rleft<=*rright&&*ileft<=*iright;x.r+=step.r, x.i+=step.i, ++k)
+					m.data[k]=x;
+			}
+			continue;
+		}
+		idx=idx0;
+		break;
+	}
+	return true;
+}
 bool		r_relational(Matrix &m, bool space_sensitive)
 {
-	if(!r_additive(m, space_sensitive))
+	if(!r_range(m, space_sensitive))
 		return false;
 	for(;;)
 	{
@@ -1280,7 +1504,7 @@ bool		r_relational(Matrix &m, bool space_sensitive)
 			{
 				m.name=nullptr;
 				Matrix m2;
-				if(!r_multiplicative(m2, space_sensitive))
+				if(!r_range(m2, space_sensitive))
 					return false;
 				if(m.dx!=m2.dx||m.dy!=m2.dy)//dimension mismatch
 					return user_error2(idx0, idx, "Element-wise operation: %dx%d != %dx%d", m.dy, m.dx, m2.dy, m2.dx);
@@ -1292,7 +1516,7 @@ bool		r_relational(Matrix &m, bool space_sensitive)
 			{
 				m.name=nullptr;
 				Matrix m2;
-				if(!r_multiplicative(m2, space_sensitive))
+				if(!r_range(m2, space_sensitive))
 					return false;
 				if(m.dx!=m2.dx||m.dy!=m2.dy)//dimension mismatch
 					return user_error2(idx0, idx, "Element-wise operation: %dx%d != %dx%d", m.dy, m.dx, m2.dy, m2.dx);
@@ -1304,7 +1528,7 @@ bool		r_relational(Matrix &m, bool space_sensitive)
 			{
 				m.name=nullptr;
 				Matrix m2;
-				if(!r_multiplicative(m2, space_sensitive))
+				if(!r_range(m2, space_sensitive))
 					return false;
 				if(m.dx!=m2.dx||m.dy!=m2.dy)//dimension mismatch
 					return user_error2(idx0, idx, "Element-wise operation: %dx%d != %dx%d", m.dy, m.dx, m2.dy, m2.dx);
@@ -1316,7 +1540,7 @@ bool		r_relational(Matrix &m, bool space_sensitive)
 			{
 				m.name=nullptr;
 				Matrix m2;
-				if(!r_multiplicative(m2, space_sensitive))
+				if(!r_range(m2, space_sensitive))
 					return false;
 				if(m.dx!=m2.dx||m.dy!=m2.dy)//dimension mismatch
 					return user_error2(idx0, idx, "Element-wise operation: %dx%d != %dx%d", m.dy, m.dx, m2.dy, m2.dx);
@@ -1382,6 +1606,8 @@ bool		r_assign_expr(Matrix &m, bool space_sensitive)
 		case T_ASSIGN:
 			if(!r_assign_expr(m, space_sensitive))
 				return false;
+			if(m.flags==M_UNSPECIFIED_RANGE)
+				return user_error2(idx0, idx, "Cannot assign an unspecified range");
 			m.name=name;
 			g_vars[name]=m;
 			return true;
@@ -1393,6 +1619,8 @@ bool		r_assign_expr(Matrix &m, bool space_sensitive)
 			{
 				if(!r_assign_expr(m, space_sensitive))
 					return false;
+				if(m.flags==M_UNSPECIFIED_RANGE)
+					return user_error2(idx0, idx, "Cannot assign an unspecified range");
 				auto &mv=g_vars[name];
 				switch(t)
 				{
@@ -1534,6 +1762,11 @@ int			solve(std::string &str, bool again)
 			//		break;
 			//	}
 			//}
+		}
+		if(m.flags==M_UNSPECIFIED_RANGE)
+		{
+			user_error2(idx0, idx, "Result is an unspecified range");
+			ret=SOLVE_PARSE_ERROR;
 		}
 		break;
 	}
