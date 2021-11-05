@@ -1,9 +1,7 @@
 //mc2_system.c - OS-dependent code
 
-//static const char file[]=__FILE__;
-
-//_WIN32
-#ifdef __linux__//linux stuff
+#include<sys/stat.h>
+#ifdef __linux__
 #include <termios.h>//https://stackoverflow.com/questions/7469139/what-is-the-equivalent-to-getch-getche-in-linux
 static struct termios	old, current;
 void	initTermios(int echo)//Initialize new terminal i/o settings
@@ -87,4 +85,21 @@ const wchar_t* open_file_window()
 	memcpy(g_wbuf, ofn.lpstrFile, wcslen(ofn.lpstrFile)*sizeof(wchar_t));
 	return g_wbuf;
 }
+#define	S_ISREG(m)	(((m)&S_IFMT)==S_IFREG)
 #endif
+int				file_is_readablea(const char *filename)//0: not readable, 1: regular file, 2: folder
+{
+	struct stat info;
+	int error=stat(filename, &info);
+	if(!error)
+		return 1+!S_ISREG(info.st_mode);
+	return 0;
+}
+int				file_is_readablew(const wchar_t *filename)//0: not readable, 1: regular file, 2: folder
+{
+	struct _stat32 info;
+	int error=_wstat32(filename, &info);
+	if(!error)
+		return 1+!S_ISREG(info.st_mode);
+	return 0;
+}

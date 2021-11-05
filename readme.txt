@@ -1,7 +1,7 @@
 MCALC2: A Matrix Calculator
 
 Usage:
-  mcalc2 ["expression"/filename]
+  mcalc2 ["expression"/"filename"]
 
 Syntax:
   Use Matlab-style vectors & matrices.
@@ -38,7 +38,7 @@ Keywords:
   vars: Shows all variables & answer count
   open: Choose a text file to open
 General functions:
-  ans(n): The n-th latest answer
+  ans(n): The n-th answer
   cmd(w, h): set console buffer size (in characters)
 Vectors:
   cross(3D vec, 3D vec) -> 3D vec

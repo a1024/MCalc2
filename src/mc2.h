@@ -26,6 +26,8 @@ extern "C"
 {
 	int				set_console_buffer_size(short w, short h);
 	const wchar_t*	open_file_window();
+	int				file_is_readablea(const char *filename);
+	int				file_is_readablew(const wchar_t *filename);
 }
 
 

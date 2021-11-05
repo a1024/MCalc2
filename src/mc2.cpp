@@ -29,7 +29,7 @@ void		print_help()
 	//	"01234567890123456789012345678901234567890123456789012345678901234567890123456789"
 		"MCALC2: A Matrix Calculator\n"
 		"Usage:\n"
-		"  mcalc2 [\"expression\"/filename]\n"
+		"  mcalc2 [\"expression\"/\"filename\"]\n"
 		"\n"
 		"Syntax:\n"
 		"  Use Matlab-style vectors & matrices.\n"
@@ -70,7 +70,7 @@ void		print_help()
 		"  vars: Shows all variables & answer count\n"
 		"  open: Choose a text file to open\n"
 		"General functions:\n"
-		"  ans(n): The n-th latest answer\n"
+		"  ans(n): The n-th answer\n"
 		"  cmd(w, h): set console buffer size (in characters)\n"
 		"Vectors:\n"
 		"  cross(3D vec, 3D vec) -> 3D vec\n"
@@ -112,7 +112,7 @@ bool		get_str_from_file(std::string &str)
 	auto wbuf=open_file_window();
 	if(!wbuf)
 		return false;
-	FILE *file;
+	FILE *file=nullptr;
 	int ret=_wfopen_s(&file, wbuf, L"r");
 	if(ret)
 	{
@@ -140,7 +140,7 @@ int			main(int argc, const char **argv)
 	{
 		printf(
 			"Usage:\n"
-			"  mcalc [\"expression\"/filename]\n"
+			"  mcalc [\"expression\"/\"filename\"]\n"
 			"Please enclose command arguments in doublequotes.\n"
 			"Press H for help, X to exit, or any key to continue.\n");
 		char c=_getch();
@@ -152,8 +152,27 @@ int			main(int argc, const char **argv)
 	}
 	else if(argc==2)
 	{
-		str=argv[1];
 		printf("> %s\n\n", argv[1]);
+		if(file_is_readablea(argv[1]))
+		{
+			FILE *file=nullptr;
+			int ret=fopen_s(&file, argv[1], "r");
+			if(ret)
+			{
+				strerror_s(g_buf, g_buf_size, ret);
+				printf("%s\n", g_buf);
+				return EXIT_FAILURE;
+			}
+			fseek(file, 0, SEEK_END);
+			int bytesize=ftell(file);
+			fseek(file, 0, SEEK_SET);
+			str.resize(bytesize);
+			fread(&str[0], 1, bytesize, file);
+			fclose(file);
+			str.resize(strlen(str.c_str()));
+		}
+		else
+			str=argv[1];
 		quit_prompt=true;
 	}
 	else
@@ -196,7 +215,13 @@ int			main(int argc, const char **argv)
 		if(quit_prompt)//
 		{
 			printf("Quit? [Y/N] ");
-			char c=_getche();
+
+			char c=0;
+			scanf_s("%c", &c);
+			while(getchar()!='\n');
+
+			//char c=_getche();
+
 			if((c&0xDF)=='Y')
 				break;
 			quit_prompt=false;
