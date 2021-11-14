@@ -3,14 +3,15 @@ TOKEN(0, T_IGNORED)
 
 //functions
 TOKEN("ans", T_ANS) TOKEN("cmd", T_CMD)//general
+TOKEN("frac", T_FRAC)//numbers
 TOKEN("conv", T_CONV) TOKEN("roots", T_ROOTS)//polynomials
 TOKEN("ldiv", T_LDIV) TOKEN("sample", T_SAMPLE) TOKEN("invz", T_INVZ)//fractions
 TOKEN("cross", T_CROSS)//row vectors
-TOKEN("I", T_IDEN) TOKEN("sum", T_SUM) TOKEN("ref", T_REF) TOKEN("rref", T_RREF) TOKEN("det", T_DET) TOKEN("inv", T_INV) TOKEN("diag", T_DIAG) TOKEN("lu", T_LU) TOKEN("tr", T_TRACE)//matrices
+TOKEN("I", T_IDEN) TOKEN("sum", T_SUM) TOKEN("ref", T_REF) TOKEN("rref", T_RREF) TOKEN("rref2", T_RREF2) TOKEN("det", T_DET) TOKEN("inv", T_INV) TOKEN("diag", T_DIAG) TOKEN("lu", T_LU) TOKEN("tr", T_TRACE)//matrices
 TOKEN("dft", T_DFT) TOKEN("fft", T_FFT_UNUSED) TOKEN("idft", T_IDFT) TOKEN("ifft", T_IFFT_UNUSED)//matrices & polynomials
 
 //generic functions
-TOKEN("exp", T_EXP) TOKEN("ln", T_LN) TOKEN("log", T_LOG)
+TOKEN("sqrt", T_SQRT) TOKEN("cbrt", T_CBRT) TOKEN("exp", T_EXP) TOKEN("ln", T_LN) TOKEN("log", T_LOG)
 TOKEN("gamma", T_GAMMA) TOKEN("lngamma", T_LNGAMMA)
 TOKEN("cos", T_COS) TOKEN("acos", T_ACOS) TOKEN("cosd", T_COSD) TOKEN("acosd", T_ACOSD) TOKEN("cosh", T_COSH) TOKEN("acosh", T_ACOSH)
 TOKEN("sec", T_SEC) TOKEN("asec", T_ASEC) TOKEN("secd", T_SECD) TOKEN("asecd", T_ASECD) TOKEN("sech", T_SECH) TOKEN("asech", T_ASECH)

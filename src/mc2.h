@@ -46,6 +46,7 @@ extern "C"
 	double	power(double x, int y);
 	double	_10pow(int n);
 	
+	void	dec2frac(double x, double error, int *i, int *num, int *den);
 	void	print_matrix_debug(Comp const *buf, int w, int h);
 
 	double	c_abs2(Comp *z);
@@ -63,6 +64,7 @@ extern "C"
 
 	void	impl_ref(Comp *m, short dx, short dy);
 	void	impl_rref(Comp *m, short dx, short dy);
+	void	impl_rref2(Comp *m, short dx, short dy);
 	Comp	impl_det(Comp *m, int dx);//m is destroyed
 	void	impl_matinv(Comp *m, short dx);//resize m to (dy * 2dx) temporarily,		dx==dy always
 	void	impl_matmul(Comp *dst, const Comp *A, const Comp *B, int h1, int w1h2, int w2);

@@ -196,8 +196,7 @@ static double	acme_read_tail(const char *text, int size, double inv_base, int st
 static char		acme_read_number_pt2(const char *text, int size, int base, double invbase, int start, int *advance, long long *ival, double *fval)
 {
 	char isfloat=0, neg_exponent;
-	int end;
-	int exponent;
+	int start2, end, exponent;
 	char temp;
 
 	*ival=acme_read_integer(text, size, base, start, &end);
@@ -213,11 +212,11 @@ static char		acme_read_number_pt2(const char *text, int size, int base, double i
 		temp=text[end]&0xDF;
 		if(base==10&&temp=='E'||temp=='P')
 		{
-			start=end+1;
-			neg_exponent=text[start]=='-';
-			start+=text[start]=='-'||text[start]=='+';
+			start2=end+1;
+			neg_exponent=text[start2]=='-';
+			start2+=text[start2]=='-'||text[start2]=='+';
 
-			exponent=(int)acme_read_integer(text, size, base, start, &end);
+			exponent=(int)acme_read_integer(text, size, base, start2, &end);
 			if(!isfloat)
 				*fval=(double)*ival;
 			if(neg_exponent)

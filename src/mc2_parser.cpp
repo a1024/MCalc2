@@ -111,7 +111,7 @@ inline void c_sq(Comp &z)
 inline void	c_exp(Comp &z)
 {
 	double m=exp(z.r);
-	z.r=m*cos(z.r);
+	z.r=m*cos(z.i);
 	z.i=m*sin(z.i);
 }
 inline void	c_ln(Comp &z)
@@ -127,6 +127,15 @@ inline void c_sqrt(Comp &z)//sqrt(z)=exp(0.5lnz)
 	{
 		c_ln(z);
 		z.r*=0.5, z.i*=0.5;
+		c_exp(z);
+	}
+}
+inline void c_cbrt(Comp &z)//sqrt(z)=exp(0.5lnz)
+{
+	if(z.r||z.i)
+	{
+		c_ln(z);
+		z.r*=1./3, z.i*=1./3;
 		c_exp(z);
 	}
 }
@@ -799,24 +808,20 @@ bool		r_unary(Matrix &m, bool space_sensitive)
 #if 1
 		case T_ANS:
 		case T_ROOTS:
-		case T_SAMPLE:
-		case T_INVZ:
+		case T_SAMPLE:case T_INVZ:
 		case T_IDEN:
 		case T_SUM:
-		case T_REF:
-		case T_RREF:
-		case T_DET:
-		case T_INV:
-		case T_DIAG:
-		case T_LU:
-		case T_TRACE:
+		case T_REF:case T_RREF:case T_RREF2:
+		case T_DET:case T_INV:
+		case T_DIAG:case T_LU:case T_TRACE:
+		case T_SQRT:case T_CBRT:case T_EXP:case T_LN:case T_LOG:
+	//	case T_GAMMA:case T_LNGAMMA:
 		case T_COS:case T_ACOS:case T_COSD:case T_ACOSD:case T_COSH:case T_ACOSH:
 		case T_SEC:case T_ASEC:case T_SECD:case T_ASECD:case T_SECH:case T_ASECH:
 		case T_SIN:case T_ASIN:case T_SIND:case T_ASIND:case T_SINH:case T_ASINH:
 		case T_CSC:case T_ACSC:case T_CSCD:case T_ACSCD:case T_CSCH:case T_ACSCH:
 		case T_TAN:case T_ATAN:case T_TAND:case T_ATAND:case T_TANH:case T_ATANH:
 		case T_COT:case T_ACOT:case T_COTD:case T_ACOTD:case T_COTH:case T_ACOTH:
-		case T_GAMMA:
 			m.name=nullptr;
 			if(lex_get(false)!=T_LPR)
 				return user_error2(idx0, idx, "Expected an opening parenthesis \'(\' of function call");
@@ -894,6 +899,9 @@ bool		r_unary(Matrix &m, bool space_sensitive)
 			case T_RREF:
 				impl_rref(m.data, m.dx, m.dy);
 				break;
+			case T_RREF2:
+				impl_rref2(m.data, m.dx, m.dy);
+				break;
 			case T_DET:
 				if(m.dx!=m.dy)//must be square
 					return user_error2(idx0, idx, "Expected a square matrix");
@@ -925,6 +933,8 @@ bool		r_unary(Matrix &m, bool space_sensitive)
 				CREALLOC(m.data, m.data, m.dx*m.dy);
 				break;
 #define		EW_FUNC(FUNC)	for(int k=0, size=m.dx*m.dy;k<size;++k)FUNC(m.data[k]);
+			case T_SQRT:	EW_FUNC(c_sqrt)break;
+			case T_CBRT:	EW_FUNC(c_cbrt)break;
 			case T_EXP:		EW_FUNC(c_exp)break;
 			case T_LN:		EW_FUNC(c_ln)break;
 			//case T_GAMMA:		EW_FUNC(c_tgamma)break;
@@ -970,6 +980,7 @@ bool		r_unary(Matrix &m, bool space_sensitive)
 			}
 			return r_postfix(m, space_sensitive);
 		case T_CMD:
+		case T_FRAC:
 		case T_CONV:
 		case T_LDIV:
 		case T_CROSS:
@@ -991,9 +1002,7 @@ bool		r_unary(Matrix &m, bool space_sensitive)
 				case T_CMD:
 					{
 						int w=0, h=0;
-						if(!get_int(m, idx0, w))
-							return false;
-						if(!get_int(m2, idx0, h))
+						if(!get_int(m, idx0, w)||!get_int(m2, idx0, h))
 							return false;
 						//if(m.dx!=1||m.dy!=1||m2.dx!=1||m2.dy!=1)//expected 2 scalars
 						//	return user_error2(idx0, idx, "Expected two scalar arguments");
@@ -1001,6 +1010,21 @@ bool		r_unary(Matrix &m, bool space_sensitive)
 						m.data->r=set_console_buffer_size(w, h), m.data->i=0;
 						m.dx=m.dy=1;
 						CREALLOC(m.data, m.data, 1);
+					}
+					break;
+				case T_FRAC:
+					{
+						if(!check_scalar(m, idx0)||!check_scalar(m2, idx0))
+							return false;
+						if(abs(m.data->i)>1e-10||abs(m2.data->i)>1e-10)
+							return user_error2(idx0, idx, "Expected two real arguments");
+						int i=0, num=0, den=0;
+						dec2frac(m.data->r, m2.data->r, &i, &num, &den);
+						CREALLOC(m.data, m.data, 3);
+						m.data[0].r=i, m.data[0].i=0;
+						m.data[1].r=num, m.data[1].i=0;
+						m.data[2].r=den, m.data[2].i=0;
+						m.dx=3;
 					}
 					break;
 				case T_CONV:

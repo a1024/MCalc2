@@ -178,6 +178,48 @@ double		_10pow(int n)
 
 
 //complex functions
+void		dec2frac(double x, double error, int *i, int *num, int *den)//https://stackoverflow.com/questions/5124743/algorithm-for-simplifying-decimal-to-fractions
+{
+	int lower_n, upper_n, middle_n,
+		lower_d, upper_d, middle_d;
+	int n=(int)floor(x);
+	x-=n;
+	if(x<error)
+	{
+		*i=n, *num=0, *den=1;
+		return;
+	}
+	if(1-error<x)
+	{
+		*i=n+1, *num=0, *den=1;
+		return;
+	}
+	lower_n=0, upper_n=1;
+	lower_d=1, upper_d=1;
+	for(;;)
+	{
+		middle_n=lower_n+upper_n;//The middle fraction is (lower_n + upper_n) / (lower_d + upper_d)
+		middle_d=lower_d+upper_d;
+		if(middle_d*(x+error)<middle_n)//If x + error < middle
+			upper_n=middle_n, upper_d=middle_d;
+		else if(middle_n<(x-error)*middle_d)//Else If middle < x - error
+			lower_n=middle_n, lower_d=middle_d;
+		else
+			break;
+	}
+	*i=n, *num=middle_n, *den=middle_d;
+}
+void		print_value(Comp const *c)
+{
+	if(fabs(c->i)>1e-10)
+		printf("%4g+%4gi", c->r, c->i);
+	else if(fabs(c->r)<1e-10)
+		printf("   0");
+	else if(c->r==floor(c->r))
+		printf("%4g", c->r);
+	else//
+		printf("%4g/11", c->r*11);//
+}
 void		print_matrix_debug(const Comp *data, int w, int h)
 {
 	int kx, ky;
@@ -186,7 +228,10 @@ void		print_matrix_debug(const Comp *data, int w, int h)
 	for(ky=0;ky<h;++ky)
 	{
 		for(kx=0;kx<w;++kx)
-			printf("%4g+%4gi", data[w*ky+kx].r, data[w*ky+kx].i);
+		{
+			printf("  ");
+			print_value(data+w*ky+kx);
+		}
 		printf("\n");
 	}
 	printf("\n");
@@ -395,6 +440,65 @@ void		impl_rref(Comp *m, short dx, short dy)
 						//m[dx*ky+kx]-=coeff*m[dx*it+kx];
 				}
 				//print_matrix_debug(m, dx, dy);
+			}
+		}
+	}
+}
+void		impl_rref2(Comp *m, short dx, short dy)
+{
+	Comp pivot;
+	Comp coeff, temp;
+	int mindim=dx<dy?dx:dy, it, ky, kx;
+	for(it=0;it<mindim;++it)//iteration
+	{
+		//printf("Enter pivot ky: ");
+		//scanf_s("%d", &ky);
+		//pivot=m[dx*ky+it];
+		//printf("pivot=");
+		//print_value(&pivot);
+		//printf("\n");
+		for(ky=it;ky<dy;++ky)//find pivot
+		{
+			if(c_abs2(m+dx*ky+it)>1e-10)
+			{
+				pivot=m[dx*ky+it];
+				printf("pivot=");
+				print_value(&pivot);
+				printf("\n");
+				//printf("pivot=%g+%gi\n", pivot.r, pivot.i);
+				break;
+			}
+		}
+		if(ky<dy)
+		{
+			if(ky!=it)
+			{
+				for(kx=0;kx<dx;++kx)//swap rows
+					coeff=m[dx*it+kx], m[dx*it+kx]=m[dx*ky+kx], m[dx*ky+kx]=coeff;
+			}
+			for(ky=0;ky<dy;++ky)
+			{
+				if(ky==it)//normalize pivot
+				{
+					c_inv(&coeff, m+dx*it+it);
+					//coeff=1/m[dx*it+it];
+					for(kx=it;kx<dx;++kx)
+						c_mul(m+dx*it+kx, m+dx*it+kx, &coeff);
+						//m[dx*it+kx]*=coeff;
+				}
+				else//subtract pivot row from all other rows
+				{
+					c_div(&coeff, m+dx*ky+it, m+dx*it+it);
+					//coeff=m[dx*ky+it]/m[dx*it+it];
+					for(kx=it;kx<dx;++kx)
+					{
+						c_mul(&temp, &coeff, m+dx*it+kx);
+						m[dx*ky+kx].r-=temp.r;
+						m[dx*ky+kx].i-=temp.i;
+					}
+						//m[dx*ky+kx]-=coeff*m[dx*it+kx];
+				}
+				print_matrix_debug(m, dx, dy);
 			}
 		}
 	}
