@@ -211,16 +211,35 @@ void		dec2frac(double x, double error, int *i, int *num, int *den)//https://stac
 }
 void		print_value(Comp const *c)
 {
+	int i, num, den;
 	if(fabs(c->i)>1e-10)
 		printf("%4g+%4gi", c->r, c->i);
 	else if(fabs(c->r)<1e-10)
 		printf("   0");
 	else if(c->r==floor(c->r))
 		printf("%4g", c->r);
-	else//
-		printf("%4g/11", c->r*11);//
+	else
+	{
+		dec2frac(c->r, 1e-10, &i, &num, &den);
+		if(num)
+		{
+			if(i)
+			{
+				if(i>-10&&i<10)
+					printf("%d/%d", num+i*den, den);
+				else
+					printf("%d+%d/%d", i, num, den);
+			}
+			else
+				printf("%d/%d", num, den);
+		}
+		else
+			printf("%4d", i);
+	//	printf("%d+%d/%d", i, num, den);
+	//	printf("%4g/11", c->r*11);//
+	}
 }
-void		print_matrix_debug(const Comp *data, int w, int h)
+void		print_matrix_debug(Comp const *data, int w, int h)
 {
 	int kx, ky;
 
