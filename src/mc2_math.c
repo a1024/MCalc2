@@ -1,5 +1,5 @@
 //mc2_math.c - MCalc2 math operations
-//Copyright (C) 2021  Ayman Wagih Mohsen
+//Copyright (C) 2021  Ayman Wagih Mohsen, unless source link provided
 //
 //This program is free software: you can redistribute it and/or modify
 //it under the terms of the GNU General Public License as published by
@@ -227,11 +227,15 @@ void		print_value(Comp const *c)
 			{
 				if(i>-10&&i<10)
 					printf("%d/%d", num+i*den, den);
-				else
+				else if(den<1000)
 					printf("%d+%d/%d", i, num, den);
+				else
+					printf("%g", c->r);
 			}
-			else
+			else if(den<1000)
 				printf("%d/%d", num, den);
+			else
+				printf("%g", c->r);
 		}
 		else
 			printf("%4d", i);
@@ -270,6 +274,13 @@ void		c_mul(Comp *dst, const Comp *a, const Comp *b)//(a0+a1i)(b0+b1i)=a0b0-a1b1
 		i=a->r*b->i+a->i*b->r;
 	dst->r=r, dst->i=i;
 }
+void		c_mul_add(Comp *dst, const Comp *a, const Comp *b)//(a0+a1i)(b0+b1i)=a0b0-a1b1+i(a0b1+a1b0)	//dst, a and b can point to the same address
+{
+	double
+		r=a->r*b->r-a->i*b->i,
+		i=a->r*b->i+a->i*b->r;
+	dst->r+=r, dst->i+=i;
+}
 void		c_div(Comp *dst, const Comp *a, const Comp *b)
 {
 	double invabsb2=1/c_abs2(b);
@@ -287,6 +298,32 @@ void		c_mod(Comp *dst, const Comp *a, const Comp *b)//dst=a-floor(a/b)*b
 	c_mul(&z, &z, b);
 	dst->r=a->r-z.r;
 	dst->i=a->i-z.i;
+}
+
+void		c_exp(Comp *dst, Comp const *x)
+{
+	double m=exp(x->r);
+	dst->r=m*cos(x->i);
+	dst->i=m*sin(x->i);
+}
+void		c_ln(Comp *dst, Comp const *x)
+{
+	double
+		r=log(sqrt(c_abs2(x))),
+		i=atan2(x->i, x->r);
+	dst->r=r, dst->i=i;
+}
+void		c_sqrt(Comp *dst, Comp const *x)//sqrt(x)=exp(0.5lnx)
+{
+	Comp temp;
+	if(x->r||x->i)
+	{
+		c_ln(&temp, x);
+		temp.r*=0.5, temp.i*=0.5;
+		c_exp(dst, &temp);
+	}
+	else
+		dst->r=x->r, dst->i=x->i;
 }
 
 void		impl_addbuffers(Comp *dst, Comp const *a, Comp const *b, int count)
@@ -655,6 +692,190 @@ void		impl_matpow(Comp *dst, Comp *m1, int e, int dx)//dst: dx*dx,  m1: dx*(dx*2
 		CMEMCPY(m1, temp, size);
 		//memcpy(m1, temp, size*sizeof(double));
 	}
+}
+
+void		impl_lu(Comp const *m, int n, Comp *lower, Comp *upper)
+{
+	Comp sum;
+	int i, j, k, idx;
+	int size=n*n;
+	CMEMZERO(lower, size), CMEMZERO(upper, size);
+ 
+	//Decomposing matrix into Upper and Lower triangular matrix
+	for(i=0;i<n;++i)//https://www.geeksforgeeks.org/doolittle-algorithm-lu-decomposition/
+	{
+		for(k=i;k<n;++k)//Upper Triangular
+		{
+			//Summation of L(i, j) * U(j, k)
+			sum.r=sum.i=0;
+			for(j=0;j<i;++j)
+				c_mul_add(&sum, lower+n*i+j, upper+n*j+k);
+				//sum+=lower[n*i+j]*upper[n*j+k];
+ 
+			//Evaluating U(i, k)
+			idx=n*i+k;
+			upper[idx].r=m[idx].r-sum.r;
+			upper[idx].i=m[idx].i-sum.i;
+			//upper[i][k] = mat[i][k] - sum;
+		}
+		for(k=i;k<n;++k)//Lower Triangular
+		{
+			if(i==k)
+				lower[n*i+i].r=1, lower[n*i+i].i=0;//Diagonal as 1
+			else
+			{
+				//Summation of L(k, j) * U(j, i)
+				sum.r=sum.i=0;
+				for(j=0;j<i;++j)
+					c_mul_add(&sum, lower+n*i+j, upper+n*j+k);
+					//sum+=lower[n*k+j]*upper[n*j+i];
+ 
+				//Evaluating L(k, i)
+				sum.r=m[n*k+i].r-sum.r;
+				sum.i=m[n*k+i].i-sum.i;
+				c_div(lower+n*k+i, &sum, upper+n*i+i);
+				//lower[n*k+i]=(mat[n*k+i]-sum)/upper[n*i+i];
+			}
+		}
+	}
+}
+void		impl_qr(Comp const *M, int n, Comp *Q, Comp *R)
+{
+	//factorizes a REAL square matrix M into Q and R
+	//where Q is orthogonal
+	//and R is upper triangular
+	//https://madrury.github.io/jekyll/update/statistics/2017/10/04/qr-algorithm.html
+	//https://github.com/madrury/linalg
+	int i, j, k;
+	double *col, *uvec, d;
+
+	DALLOC(col, n<<1);
+	DMEMZERO(col, n<<1);
+	uvec=col+n;
+	for(i=0;i<n;++i)
+	{
+		for(k=0;k<n;++k)//copy column i from M
+			col[k]=M[n*k+i].r;
+		for(j=0;j<i;++j)
+		{
+			for(k=0;k<n;++k)//copy column j from Q
+				uvec[k]=Q[n*k+j].r;
+			d=0;
+			for(k=0;k<n;++k)//projection of col on uvec
+				d+=col[k]*uvec[k];
+			for(k=0;k<n;++k)//col is now perpendicular to uvec
+				col[k]-=d*uvec[k];
+			R[n*i+j].r=d;
+		}
+		d=0;
+		for(k=0;k<n;++k)
+			d+=col[k]*col[k];
+		d=sqrt(d);
+		R[n*i+i].r=d;
+		d=1/d;
+		for(k=0;k<n;++k)
+			Q[n*k+i].r=col[k]*d;
+	}
+	DFREE(col);
+}
+
+void		c_det22(Comp *result, Comp *M)
+{
+	Comp t[2];
+	c_mul(t, M, M+3);
+	c_mul(t+1, M+1, M+2);
+	result->r=t->r-t[1].r;
+	result->i=t->i-t[1].i;
+}
+int			impl_diag22(Comp *M, Comp *invS, Comp *D, Comp *S)//diagonalizes a complex 2x2 matrix
+{
+	int k, k2, nvec;
+	Comp C[2], temp, M2[4];
+
+	c_det22(C, M);			//C0=det(M)
+	C[1].r=-(M[0].r+M[3].r);//C1=tr(M)
+	C[1].i=-(M[0].i+M[3].i);
+
+	//quadratic formula		lambda = C1*-0.5 +- sqrt(C1*C1*0.25-C0)
+	C[1].r*=-0.5;
+	C[1].i*=-0.5;
+	c_mul(&temp, C+1, C+1);
+	temp.r-=C->r;
+	temp.i-=C->i;
+	c_sqrt(&temp, &temp);
+	CMEMZERO(D, 4);
+	D[0].r=C[1].r-temp.r, D[0].i=C[1].i-temp.i;
+	D[3].r=C[1].r+temp.r, D[3].i=C[1].i+temp.i;
+
+	nvec=0;
+	for(k=0;k<2&&nvec<2;++k)
+	{
+		CMEMCPY(M2, M, 4);
+		M2[0].r-=D[3*k].r, M2[0].i-=D[3*k].i;//kth diagonal
+		M2[3].r-=D[3*k].r, M2[3].i-=D[3*k].i;
+		impl_rref(M2, 2, 2);
+		if(M2[0].r)
+		{
+			S[nvec].r=-M2[1].r;
+			S[nvec].i=-M2[1].i;
+			S[nvec+2].r=1;
+			S[nvec+2].i=0;
+			++nvec;
+		}
+		else if(M2[1].r||M2[1].i)
+		{
+			S[nvec].r=1;
+			S[nvec].i=0;
+			S[nvec+2].r=0;
+			S[nvec+2].i=0;
+			++nvec;
+		}
+		else
+		{
+			S[nvec  ].r=1, S[nvec  ].i=0;
+			S[nvec+1].r=0, S[nvec+1].i=0;
+			S[nvec+2].r=0, S[nvec+2].i=0;
+			S[nvec+3].r=1, S[nvec+3].i=0;
+			nvec+=2;
+		}
+	/*	printf("Lambda %d = ", k);
+		print_value(D+3*k);
+		printf("\n");
+		print_matrix_debug(M2, 2, 2);
+		printf("\n");//*/
+	}
+
+	for(k=0;k<2;++k)//normalize S
+	{
+		temp.r=0, temp.i=0;
+		for(nvec=0;nvec<2;++nvec)
+			c_mul_add(&temp, S+2*nvec+k, S+2*nvec+k);
+		if(fabs(temp.r)<1e-10||fabs(temp.i)<1e-10)//eigenvector is zero
+			continue;
+		c_inv(&temp, &temp);
+		for(nvec=0;nvec<2;++nvec)
+			c_mul(S+2*nvec+k, S+2*nvec+k, &temp);
+	}
+
+	//invert S
+	c_mul(C, S, S+3);
+	c_mul(C+1, S+1, S+2);
+	temp.r=C[0].r-C[1].r;
+	temp.i=C[0].i-C[1].i;
+	if(fabs(temp.r)<1e-10&&fabs(temp.i)<1e-10)//S is singular
+	{
+		CMEMZERO(invS, 4);
+		return 0;
+	}
+	invS[0]=S[3], invS[3]=S[0];
+	invS[1].r=-S[1].r;
+	invS[1].i=-S[1].i;
+	invS[2].r=-S[2].r;
+	invS[2].i=-S[2].i;
+	c_inv(&temp, &temp);
+	for(k=0;k<4;++k)//divide by determinant
+		c_mul(invS+k, invS+k, &temp);
+	return 1;
 }
 
 //polynomials are stored as they are read	p[0]*x^(n-1) + p[1]*x^(n-2) + ...p[n-1] of degree n-1

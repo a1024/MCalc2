@@ -54,7 +54,7 @@ inline char		is_alphanumeric(byte c)
 	return IN_RANGE('0', c, '9')||IN_RANGE('A', c, 'Z')||IN_RANGE('a', c, 'z')||c=='_';
 }
 
-struct			LexOption
+struct		LexOption
 {
 	__m128i option, mask;
 	int token;
@@ -68,7 +68,6 @@ struct			LexOption
 };
 typedef std::vector<LexOption, AlignedAllocator<LexOption, 16>> LexSlot;
 LexSlot		slots[256];
-
 inline int	strcmp_idx(const char *s1, const char *s2)//returns -1 if identical, otherwise the index where character start to differ
 {
 	int k=0;

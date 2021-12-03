@@ -7,7 +7,11 @@ TOKEN("frac", T_FRAC)//numbers
 TOKEN("conv", T_CONV) TOKEN("roots", T_ROOTS)//polynomials
 TOKEN("ldiv", T_LDIV) TOKEN("sample", T_SAMPLE) TOKEN("invz", T_INVZ)//fractions
 TOKEN("cross", T_CROSS)//row vectors
-TOKEN("I", T_IDEN) TOKEN("sum", T_SUM) TOKEN("ref", T_REF) TOKEN("rref", T_RREF) TOKEN("rref2", T_RREF2) TOKEN("det", T_DET) TOKEN("inv", T_INV) TOKEN("diag", T_DIAG) TOKEN("lu", T_LU) TOKEN("tr", T_TRACE)//matrices
+
+TOKEN("I", T_IDEN) TOKEN("sum", T_SUM) TOKEN("tr", T_TRACE)//matrices
+TOKEN("ref", T_REF) TOKEN("rref", T_RREF) TOKEN("rref2", T_RREF2)
+TOKEN("det", T_DET) TOKEN("inv", T_INV) TOKEN("lu", T_LU) TOKEN("diag2", T_DIAG2) TOKEN("diag3", T_DIAG3) TOKEN("diag", T_DIAG)
+
 TOKEN("dft", T_DFT) TOKEN("fft", T_FFT_UNUSED) TOKEN("idft", T_IDFT) TOKEN("ifft", T_IFFT_UNUSED)//matrices & polynomials
 
 //generic functions

@@ -73,6 +73,9 @@ extern "C"
 	void	impl_matdiv(Comp *dst, const Comp *num, Comp *den, int num_dy, int dx);		//dst & num: num_dy*dx,  den: dx*(dx*2)		den is destroyed
 	void	impl_matdiv_back(Comp *dst, Comp *den, const Comp *num, int dy, int num_dx);	//den: dy*(dy*2),  dst & num: dy*num_dx		den is destroyed
 	void	impl_matpow(Comp *dst, Comp *m1, int e, int dx);//dst: dx*dx,  m1: dx*(dx*2)		calculates m1^e,	m1 is destroyed
+
+	void	impl_lu(Comp const *m, int n, Comp *lower, Comp *upper);
+	int		impl_diag22(Comp *M, Comp *invS, Comp *D, Comp *S);
 	
 	void	impl_polmul(Comp *res, Comp const *A, Comp const *B, int asize, int bsize, int add);//res has correct size of (asize+bsize-1)
 }

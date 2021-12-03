@@ -810,10 +810,11 @@ bool		r_unary(Matrix &m, bool space_sensitive)
 		case T_ROOTS:
 		case T_SAMPLE:case T_INVZ:
 		case T_IDEN:
-		case T_SUM:
+		case T_SUM:case T_TRACE:
 		case T_REF:case T_RREF:case T_RREF2:
 		case T_DET:case T_INV:
-		case T_DIAG:case T_LU:case T_TRACE:
+		case T_DIAG:case T_DIAG2:case T_DIAG3:
+		case T_LU:
 		case T_SQRT:case T_CBRT:case T_EXP:case T_LN:case T_LOG:
 	//	case T_GAMMA:case T_LNGAMMA:
 		case T_COS:case T_ACOS:case T_COSD:case T_ACOSD:case T_COSH:case T_ACOSH:
@@ -863,7 +864,8 @@ bool		r_unary(Matrix &m, bool space_sensitive)
 					m.dx=m.dy=size;
 					size*=size;
 					CALLOC(m.data, size);
-					memset(m.data, 0, size*sizeof(double));
+					CMEMZERO(m.data, size);
+					//memset(m.data, 0, size*sizeof(double));
 					for(int k=0;k<size;k+=m.dx+1)
 						m.data[k].r=1;
 				}
@@ -893,6 +895,17 @@ bool		r_unary(Matrix &m, bool space_sensitive)
 					//m.data=(double*)realloc(m.data, m.dy*m.dx*sizeof(double));
 				}
 				break;
+			case T_TRACE:
+				if(m.dy!=m.dx)
+					return user_error2(idx0, idx, "Expected a square matrix");
+				for(int k=1;k<m.dx;++k)
+				{
+					m.data[0].r+=m.data[(m.dx+1)*k].r;
+					m.data[0].i+=m.data[(m.dx+1)*k].i;
+				}
+				m.dx=m.dy=1;
+				CREALLOC(m.data, m.data, m.dx*m.dy);
+				break;
 			case T_REF:
 				impl_ref(m.data, m.dx, m.dy);
 				break;
@@ -918,19 +931,36 @@ bool		r_unary(Matrix &m, bool space_sensitive)
 				impl_matinv(m.data, m.dx);
 				CREALLOC(m.data, m.data, m.dx*m.dy);
 				break;
-			case T_DIAG://TODO
 			case T_LU:
-				return my_error(idx0, idx);
-			case T_TRACE:
-				if(m.dy!=m.dx)
-					return user_error2(idx0, idx, "Expected a square matrix");
-				for(int k=1;k<m.dx;++k)
 				{
-					m.data[0].r+=m.data[(m.dx+1)*k].r;
-					m.data[0].i+=m.data[(m.dx+1)*k].i;
+					if(m.dy!=m.dx)
+						return user_error2(idx0, idx, "Expected a square matrix");
+					int size=m.dx*m.dy;
+					CREALLOC(m.data, m.data, size*3);
+					CMEMCPY(m.data+size*2, m.data, size);
+					impl_lu(m.data+size*2, m.dx, m.data+size, m.data);
+					m.dy<<=1;
+					CREALLOC(m.data, m.data, m.dx*m.dy);
 				}
-				m.dx=m.dy=1;
-				CREALLOC(m.data, m.data, m.dx*m.dy);
+				break;
+			case T_DIAG://TODO
+				return my_error(idx0, idx);
+			case T_DIAG2:
+				{
+					if(m.dx!=2||m.dy!=2)
+						return user_error2(idx0, idx, "Expected a 2x2 matrix, got %dx%d", m.dy, m.dx);
+					int size=4;
+					auto CALLOC(temp, size*3);
+					int success=impl_diag22(m.data, temp+(size<<1), temp, temp+size);
+					CFREE(m.data);
+					m.data=temp;
+					m.dy*=3;
+					if(!success)
+						printf("Matrix is not diagonalizable.\n");
+					//	return user_error2(idx0, idx, "Matrix is not diagonalizable");
+				}
+				break;
+			case T_DIAG3:
 				break;
 #define		EW_FUNC(FUNC)	for(int k=0, size=m.dx*m.dy;k<size;++k)FUNC(m.data[k]);
 			case T_SQRT:	EW_FUNC(c_sqrt)break;
