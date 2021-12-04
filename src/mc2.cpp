@@ -43,7 +43,7 @@ void		print_help()
 	//	"  For multiline statements:\n"//TODO
 	//	"    Open a parenthesis at the start of the first command, and close it at the\n"
 	//	"    end of the last command.\n"
-		"  Nested matrices and/or polynomials are not supported yet.\n"
+	//	"  Nested matrices and/or polynomials are not supported yet.\n"//not anymore
 		"  Variable names can be up to 16 characters.\n"//
 		"  Multiplication asterix \'*\' is always obligatory.\n"
 	//	"  Tensors up to 2D are supported.\n"
@@ -79,15 +79,18 @@ void		print_help()
 		"Matrices:\n"
 		"  ref: Row Echelon Form\n"
 		"  rref: Reduced Row Echelon Form (Gaussian Elimination)\n"
+		"  nullspace: Null space of a matrix\n"
 		"Square matrices:\n"
 		"  I(n): n-square identity matrix\n"//autosize?
 		"  det: determinant of square matrix\n"
 		"  inv: inverse of square matrix\n"
 		"  tr: trace of square matrix\n"
-	//	"  diag: diagonal factorization of square matrix\n"//TODO
-	//	"  lu: LU factorization of square matrix\n"
+		"  lu: LU factorization of square matrix\n"
+		"  diag: make a diagonal matrix\n"
+		"  egval: Eigenvalues of a matrix\n"
+		"  egvec(M, L): Eigenvectors, given matrix M and eigenvalues L\n"
 	//	"Polynomials:\n"
-	//	"  roots: find the roots\n"
+	//	"  roots: find the roots\n"//TODO
 	//	"Fraction objects:\n"
 	//	"  sample(F): s to z domain\n"
 	//	"  ldiv(F, S): long division of fraction F by S steps\n"
@@ -131,7 +134,7 @@ bool		get_str_from_file(std::string &str)
 }
 int			main(int argc, const char **argv)
 {
-	set_console_buffer_size(80, 9001);
+	set_console_buffer_size(80, 4000);
 	printf("MCALC%s\n\n", argc==2?"":"\t\tCtrl C to exit.");
 
 	std::string str;

@@ -12,7 +12,6 @@ Syntax:
     [1 2; 3 4][0][1] == 2
   or use parentheses (index starts at one):
     [1 2; 3 4](1,2) == 2
-  Nested matrices and/or polynomials are not supported yet.
   Variable names can be up to 16 characters.
   Multiplication asterix '*' is always obligatory.
 
@@ -47,9 +46,14 @@ Vectors:
 Matrices:
   ref: Row Echelon Form
   rref: Reduced Row Echelon Form (Gaussian Elimination)
+  nullspace: Null space of a matrix
 Square matrices:
   I(n): n-square identity matrix
   det: determinant of square matrix
   inv: inverse of square matrix
   tr: trace of square matrix
+  lu: LU factorization of square matrix
+  diag: make a diagonal matrix
+  egval: Eigenvalues of a matrix
+  egvec(M, L): Eigenvectors, given matrix M and eigenvalues L
 

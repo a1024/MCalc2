@@ -21,6 +21,9 @@
 #include	<tmmintrin.h>
 #include	"mc2_memory.h"
 static const char file[]=__FILE__;
+
+//	#define	DEBUG_NULLSPACE
+
 int			maximum(int a, int b){return a>b?a:b;}
 int			minimum(int a, int b){return a<b?a:b;}
 int			clamp(int lo, int x, int hi)
@@ -212,7 +215,7 @@ void		dec2frac(double x, double error, int *i, int *num, int *den)//https://stac
 void		print_value(Comp const *c)
 {
 	int i, num, den;
-	if(fabs(c->i)>1e-10)
+	if(c->r!=c->r||c->i!=c->i||fabs(c->r)==_HUGE||fabs(c->i)==_HUGE||fabs(c->i)>1e-10)//
 		printf("%4g+%4gi", c->r, c->i);
 	else if(fabs(c->r)<1e-10)
 		printf("   0");
@@ -274,12 +277,19 @@ void		c_mul(Comp *dst, const Comp *a, const Comp *b)//(a0+a1i)(b0+b1i)=a0b0-a1b1
 		i=a->r*b->i+a->i*b->r;
 	dst->r=r, dst->i=i;
 }
-void		c_mul_add(Comp *dst, const Comp *a, const Comp *b)//(a0+a1i)(b0+b1i)=a0b0-a1b1+i(a0b1+a1b0)	//dst, a and b can point to the same address
+void		c_mul_add(Comp *dst, const Comp *a, const Comp *b)
 {
 	double
 		r=a->r*b->r-a->i*b->i,
 		i=a->r*b->i+a->i*b->r;
 	dst->r+=r, dst->i+=i;
+}
+void		c_mul_sub(Comp *dst, const Comp *a, const Comp *b)
+{
+	double
+		r=a->r*b->r-a->i*b->i,
+		i=a->r*b->i+a->i*b->r;
+	dst->r-=r, dst->i-=i;
 }
 void		c_div(Comp *dst, const Comp *a, const Comp *b)
 {
@@ -320,6 +330,18 @@ void		c_sqrt(Comp *dst, Comp const *x)//sqrt(x)=exp(0.5lnx)
 	{
 		c_ln(&temp, x);
 		temp.r*=0.5, temp.i*=0.5;
+		c_exp(dst, &temp);
+	}
+	else
+		dst->r=x->r, dst->i=x->i;
+}
+void		c_cbrt(Comp *dst, Comp const *x)//sqrt(x)=exp(0.5lnx)
+{
+	Comp temp;
+	if(x->r||x->i)
+	{
+		c_ln(&temp, x);
+		temp.r*=1./3, temp.i*=1./3;
 		c_exp(dst, &temp);
 	}
 	else
@@ -414,35 +436,37 @@ void		impl_ref(Comp *m, short dx, short dy)
 	Comp pivot;
 #endif
 	Comp coeff, temp;
-	int mindim=dx<dy?dx:dy, it, ky, kx;
-	for(it=0;it<mindim;++it)//iteration
+	int mindim=dx<dy?dx:dy, it, ky, kx, npivots, kpivot;
+	for(it=0, npivots=0;it<mindim;++it)//iteration
 	{
-		for(ky=it;ky<dy;++ky)//find pivot
+		for(ky=npivots;ky<dy;++ky)//find pivot
 		{
 			if(c_abs2(m+dx*ky+it)>1e-10)
 			{
 #ifdef _DEBUG
 				pivot=m[dx*ky+it];
 #endif
+				kpivot=ky;
+				++npivots;
 				break;
 			}
 		}
 		if(ky<dy)
 		{
-			if(ky!=it)
+			if(ky>it)
 				for(kx=0;kx<dx;++kx)//swap rows
 					coeff=m[dx*it+kx], m[dx*it+kx]=m[dx*ky+kx], m[dx*ky+kx]=coeff;
 			for(++ky;ky<dy;++ky)//subtract pivot row
 			{
-				c_div(&coeff, m+dx*ky+it, m+dx*it+it);
-				//coeff=m[dx*ky+it]/m[dx*it+it];
+				c_div(&coeff, m+dx*ky+it, m+dx*kpivot+it);
+				//coeff=m[dx*ky+it]/m[dx*kpivot+it];
 				for(kx=it;kx<dx;++kx)
 				{
-					c_mul(&temp, &coeff, m+dx*it+kx);
+					c_mul(&temp, &coeff, m+dx*kpivot+kx);
 					m[dx*ky+kx].r-=temp.r;
 					m[dx*ky+kx].i-=temp.i;
 				}
-					//m[dx*ky+kx]-=coeff*m[dx*it+kx];
+					//m[dx*ky+kx]-=coeff*m[dx*kpivot+kx];
 			}
 		}
 	}
@@ -453,50 +477,55 @@ void		impl_rref(Comp *m, short dx, short dy)
 	Comp pivot;
 #endif
 	Comp coeff, temp;
-	int mindim=dx<dy?dx:dy, it, ky, kx;
-	for(it=0;it<mindim;++it)//iteration
+	int mindim=dx<dy?dx:dy, it, ky, kx, npivots, kpivot;
+	for(it=0, npivots=0;it<mindim;++it)//iteration
 	{
-		for(ky=it;ky<dy;++ky)//find pivot
+		kpivot=-1;
+		for(ky=npivots;ky<dy;++ky)//find pivot
 		{
 			if(c_abs2(m+dx*ky+it)>1e-10)
 			{
 #ifdef _DEBUG
 				pivot=m[dx*ky+it];
 #endif
+				kpivot=ky;
+				++npivots;
 				break;
 			}
 		}
-		if(ky<dy)
+		if(kpivot==-1)
+			continue;
+		if(kpivot>npivots-1)
+		//if(ky>it)//X
 		{
-			if(ky!=it)
+			for(kx=0;kx<dx;++kx)//swap rows
+				coeff=m[dx*kpivot+kx], m[dx*kpivot+kx]=m[dx*(npivots-1)+kx], m[dx*(npivots-1)+kx]=coeff;
+				//coeff=m[dx*it+kx], m[dx*it+kx]=m[dx*ky+kx], m[dx*ky+kx]=coeff;//X
+			kpivot=npivots-1;
+		}
+		for(ky=0;ky<dy;++ky)
+		{
+			if(ky==kpivot)//normalize pivot row
 			{
-				for(kx=0;kx<dx;++kx)//swap rows
-					coeff=m[dx*it+kx], m[dx*it+kx]=m[dx*ky+kx], m[dx*ky+kx]=coeff;
+				c_inv(&coeff, m+dx*kpivot+it);
+				//coeff=1/m[dx*kpivot+it];
+				for(kx=it;kx<dx;++kx)
+					c_mul(m+dx*kpivot+kx, m+dx*kpivot+kx, &coeff);
+					//m[dx*kpivot+kx]*=coeff;
 			}
-			for(ky=0;ky<dy;++ky)
+			else//subtract pivot row from all other rows
 			{
-				if(ky==it)//normalize pivot
+				c_div(&coeff, m+dx*ky+it, m+dx*kpivot+it);
+				//coeff=m[dx*ky+it]/m[dx*kpivot+it];
+				for(kx=it;kx<dx;++kx)
 				{
-					c_inv(&coeff, m+dx*it+it);
-					//coeff=1/m[dx*it+it];
-					for(kx=it;kx<dx;++kx)
-						c_mul(m+dx*it+kx, m+dx*it+kx, &coeff);
-						//m[dx*it+kx]*=coeff;
+					c_mul(&temp, &coeff, m+dx*kpivot+kx);
+					m[dx*ky+kx].r-=temp.r;
+					m[dx*ky+kx].i-=temp.i;
 				}
-				else//subtract pivot row from all other rows
-				{
-					c_div(&coeff, m+dx*ky+it, m+dx*it+it);
-					//coeff=m[dx*ky+it]/m[dx*it+it];
-					for(kx=it;kx<dx;++kx)
-					{
-						c_mul(&temp, &coeff, m+dx*it+kx);
-						m[dx*ky+kx].r-=temp.r;
-						m[dx*ky+kx].i-=temp.i;
-					}
-						//m[dx*ky+kx]-=coeff*m[dx*it+kx];
-				}
-				//print_matrix_debug(m, dx, dy);
+					//m[dx*ky+kx]-=coeff*m[dx*kpivot+kx];
 			}
+			//print_matrix_debug(m, dx, dy);//
 		}
 	}
 }
@@ -739,18 +768,18 @@ void		impl_lu(Comp const *m, int n, Comp *lower, Comp *upper)
 		}
 	}
 }
-void		impl_qr(Comp const *M, int n, Comp *Q, Comp *R)
+void		impl_qr(Comp const *M, int n, Comp *Q, Comp *R, double *temp)//temp: a buffer of 2n doubles
 {
 	//factorizes a REAL square matrix M into Q and R
-	//where Q is orthogonal
-	//and R is upper triangular
+	//where Q is orthogonal and R is upper triangular
 	//https://madrury.github.io/jekyll/update/statistics/2017/10/04/qr-algorithm.html
 	//https://github.com/madrury/linalg
 	int i, j, k;
-	double *col, *uvec, d;
+	double *col=temp, *uvec=temp+n, d;
 
-	DALLOC(col, n<<1);
-	DMEMZERO(col, n<<1);
+	DMEMZERO(temp, n<<1);
+//	DALLOC(col, n<<1);
+//	DMEMZERO(col, n<<1);
 	uvec=col+n;
 	for(i=0;i<n;++i)
 	{
@@ -776,10 +805,10 @@ void		impl_qr(Comp const *M, int n, Comp *Q, Comp *R)
 		for(k=0;k<n;++k)
 			Q[n*k+i].r=col[k]*d;
 	}
-	DFREE(col);
+//	DFREE(col);
 }
 
-void		c_det22(Comp *result, Comp *M)
+void		c_det22(Comp *result, Comp const *M)
 {
 	Comp t[2];
 	c_mul(t, M, M+3);
@@ -787,9 +816,257 @@ void		c_det22(Comp *result, Comp *M)
 	result->r=t->r-t[1].r;
 	result->i=t->i-t[1].i;
 }
-int			impl_diag22(Comp *M, Comp *invS, Comp *D, Comp *S)//diagonalizes a complex 2x2 matrix
+void		impl_egval2(Comp *M, Comp *lambdas)//finds the eigenvalues of a complex 2x2 matrix
 {
-	int k, k2, nvec;
+	Comp C[2], temp;
+
+	c_det22(C, M);			//C0=det(M)
+	C[1].r=-(M[0].r+M[3].r);//C1=tr(M)
+	C[1].i=-(M[0].i+M[3].i);
+
+	//quadratic formula		lambda = C1*-0.5 +- sqrt(C1*C1*0.25-C0)
+	C[1].r*=-0.5;
+	C[1].i*=-0.5;
+	c_mul(&temp, C+1, C+1);
+	temp.r-=C->r;
+	temp.i-=C->i;
+	c_sqrt(&temp, &temp);
+	lambdas[0].r=C[1].r-temp.r, lambdas[0].i=C[1].i-temp.i;
+	lambdas[1].r=C[1].r+temp.r, lambdas[1].i=C[1].i+temp.i;
+}
+void		impl_solve_cubic(Comp const *coeffs, Comp *roots)//finds r[0], r[1], & r[2], the solutions of x^3 + c[2]x^2 + c[1]x + c[0] = 0
+{
+	//https://math.stackexchange.com/questions/15865/why-not-write-the-solutions-of-a-cubic-this-way/18873#18873
+	Comp p=coeffs[2], q=coeffs[1], r=coeffs[0],
+		p2, p3, q2, prod, A, B;
+	double _3sqrt3=3*sqrt(3), inv3cbrt2=1./(3*cbrt(2)), ninth=1./9;
+	Comp cm={-0.5, -sqrt(3)*0.5}, cp={-0.5, sqrt(3)*0.5};
+
+	c_mul(&p2, &p, &p);
+	c_mul(&p3, &p2, &p);
+	c_mul(&q2, &q, &q);
+
+	c_mul(&A, &q2, &q);
+	A.r*=4;
+	A.i*=4;
+	c_mul(&prod, &p2, &q2);
+	A.r-=prod.r;
+	A.i-=prod.i;
+	c_mul(&prod, &p3, &r);
+	A.r+=4*prod.r;
+	A.i+=4*prod.i;
+	c_mul(&prod, &p, &q);
+	c_mul(&prod, &prod, &r);
+	A.r-=18*prod.r;
+	A.i-=18*prod.i;
+	c_mul(&prod, &r, &r);
+	A.r+=27*prod.r;
+	A.i+=27*prod.i;
+	c_sqrt(&A, &A);
+	A.r*=_3sqrt3;
+	A.i*=_3sqrt3;
+	A.r-=27*r.r;
+	A.i-=27*r.i;
+	c_mul(&prod, &p, &q);
+	A.r+=9*prod.r-2*p3.r;
+	A.i+=9*prod.i-2*p3.i;
+	c_cbrt(&A, &A);
+	A.r*=inv3cbrt2;
+	A.i*=inv3cbrt2;
+	B.r=3*q.r-p2.r;
+	B.i=3*q.i-p2.i;
+	c_div(&B, &B, &A);
+	B.r*=ninth;
+	B.i*=ninth;
+	roots[2].r=roots[1].r=roots[0].r=-p.r*(1./3);
+	roots[2].i=roots[1].i=roots[0].i=-p.i*(1./3);
+	roots[0].r+=A.r-B.r;
+	roots[0].i+=A.i-B.i;
+	c_mul_add(roots+1, &A, &cm);
+	c_mul_sub(roots+1, &B, &cp);
+	c_mul_add(roots+2, &A, &cp);
+	c_mul_sub(roots+2, &B, &cm);
+}
+void		impl_egval3(Comp const *M, Comp *lambdas)//finds the eigenvalues of a complex 3x3 matrix
+{
+	Comp C[3], temp;
+	
+	C[2].r=-(M[0].r+M[4].r+M[8].r);//C[2] = -tr(M) = -(M[0]+M[4]+M[8]);
+	C[2].i=-(M[0].i+M[4].i+M[8].i);
+
+	//C[1] = cof0+cof4+cof8 = M[4]*M[8]-M[5]*M[7] + M[0]*M[8]-M[2]*M[6] + M[0]*M[4]-M[1]*M[3];
+	c_mul(C+1, M+4, M+8);
+	c_mul_sub(C+1, M+5, M+7), C[0]=C[1];
+	c_mul_add(C+1, M+0, M+8);
+	c_mul_sub(C+1, M+2, M+6);
+	c_mul_add(C+1, M+0, M+4);
+	c_mul_sub(C+1, M+1, M+3);
+
+	//C[0] = -det(M) = -(M[0]*(M[4]*M[8]-M[5]*M[7]) - M[1]*(M[3]*M[8]-M[5]*M[6]) + M[2]*(M[3]*M[7]-M[4]*M[6]));
+	c_mul(C, C, M);
+	c_mul(&temp, M+3, M+8);
+	c_mul_sub(&temp, M+5, M+6);
+	c_mul_sub(C, &temp, M+1);
+	c_mul(&temp, M+3, M+7);
+	c_mul_sub(&temp, M+4, M+6);
+	c_mul_add(C, &temp, M+2);
+	C->r=-C->r, C->i=-C->i;
+
+	impl_solve_cubic(C, lambdas);
+}
+int			is_upper_triangular(Comp *M, int n)
+{
+	int k, k2;
+	const double tolerance=1e-10;
+	for(k=0;k<n;++k)
+		for(k2=0;k2<k;++k)
+			if(fabs(M[n*k+k2].r)>tolerance||fabs(M[n*k+k2].i)>tolerance)
+				return 0;
+	return 1;
+}
+void		impl_egval(Comp const *M, int n, Comp *D, int it_limit)
+{
+	int size=n*n, it=0;
+	Comp *CALLOC(temp, size*2+n);
+	Comp *Q=temp+n, *R=temp+n+size;
+	CMEMCPY(D, M, size);
+	do
+	{
+		impl_qr(D, n, Q, R, (double*)temp);
+		impl_matmul(D, R, Q, n, n, n);
+		++it;
+	}while(it<it_limit&&!is_upper_triangular(D, n));
+	CFREE(temp);
+}
+int			impl_nullspace(Comp *M, int dx, int dy, Comp *solution, char *dep_flags, short *row_idx)
+{
+	//M is rref'ed
+	//solution allocated size dy*dy, pre-memset solution to zero
+	//p_flags & row_idx both size dx
+	//returns number of vectors in solution
+	int kx, kxdst, ky, keq, kfree, idx, idx2, nvec;
+#ifdef DEBUG_NULLSPACE
+	printf("Before RREF:\n");
+	print_matrix_debug(M, dx, dy);
+#endif
+	impl_rref(M, dx, dy);
+#ifdef DEBUG_NULLSPACE
+	printf("After RREF:\n");
+	print_matrix_debug(M, dx, dy);
+#endif
+	memset(dep_flags, 0, dx);
+	memset(row_idx, 0, dx*sizeof(short));
+	for(ky=0;ky<dy;++ky)//find pivots (dependent variables)
+	{
+		for(kx=ky;kx<dx;++kx)
+		{
+			idx=dx*ky+kx;
+			if(fabs(M[idx].r)>1e-10||fabs(M[idx].i)>1e-10)
+				break;
+		}
+		if(kx<dx)
+			dep_flags[kx]=1, row_idx[ky]=kx;
+		else
+			break;
+	}
+	nvec=dx-ky;
+	for(ky=0, keq=0, kfree=0;ky<dx;++ky)
+	{
+		if(dep_flags[ky])//pivot, dependent variable
+		{
+			for(kx=0, kxdst=0;kx<dx;++kx)
+			{
+				if(dep_flags[kx])
+					continue;
+				idx=dx*ky+kxdst, idx2=dx*keq+kx;
+				solution[idx].r=-M[idx2].r;
+				solution[idx].i=-M[idx2].i;
+				++kxdst;
+			}
+			++keq;
+		}
+		else//free variable
+		{
+			idx=dx*ky;
+			CMEMZERO(solution+idx, nvec);
+			solution[idx+kfree].r=1;
+			++kfree;
+		}
+#ifdef DEBUG_NULLSPACE
+		//printf("Nullspace row %d:\n", ky);
+		print_matrix_debug(solution+dx*ky, nvec, 1);//
+#endif
+	}
+#if 0
+	for(kx=0, kfree=0;kx<dx;++kx)//find solution vectors
+	{
+		if(!p_flags[kx])//free variable
+		{
+			for(ky=0, ky2=0;ky<dx;++ky)
+			{
+
+			}
+		/*	for(kxdst=0;kxdst<dx;++kxdst)
+			{
+				idx=dx*kxdst+kfree;
+				if(kxdst==kfree)
+				{
+					solution[idx].r=1;
+					solution[idx].i=0;
+				}
+				else
+				{
+					solution[idx].r=M[].r;
+					solution[idx].i=M[].i;
+				}
+			}//*/
+			++kfree;
+		}
+	}
+#endif
+	return nvec;
+}
+int			impl_egvec(Comp const *M, int n, Comp const *lambdas, Comp *S)
+{
+	int kv, kx, nvec, size=n*n, again;
+	Comp *CALLOC(temp, size);
+	CMEMZERO(S, size);
+	char *dep_flags=(char*)malloc(n);
+	short *row_idx=(short*)malloc(n*sizeof(short));
+	for(kv=0, nvec=0;kv<n&&nvec<n;++kv)//get eigenvectors
+	{
+		again=0;
+		for(kx=0;kx<kv;++kx)//check for repeated eigenvalues
+		{
+			if(fabs(lambdas[kx].r-lambdas[kv].r)<1e-10&&fabs(lambdas[kx].i-lambdas[kv].i)<1e-10)
+			{
+				again=1;
+				break;
+			}
+		}
+		if(again)
+			continue;
+		CMEMCPY(temp, M, size);
+		for(kx=0;kx<n;++kx)
+		{
+			temp[(n+1)*kx].r-=lambdas[kv].r;
+			temp[(n+1)*kx].i-=lambdas[kv].i;
+		}
+		nvec+=impl_nullspace(temp, n, n, S+nvec, dep_flags, row_idx);
+		//print_matrix_debug(S, n, n);//
+		//for(ky=0;ky<n;++ky)
+		//{
+		//	for(kx=ky;kx<n;++kx)
+		//		if(fabs(temp[n*ky+kx].r)>1e-10||fabs(temp[n*ky+kx].i)>1e-10)
+		//			break;
+		//}
+	}
+	free(dep_flags), free(row_idx);
+	return nvec;
+}
+int			impl_diag2(Comp const *M, Comp *invS, Comp *D, Comp *S)//diagonalizes a complex 2x2 matrix
+{
+	int k, nvec;
 	Comp C[2], temp, M2[4];
 
 	c_det22(C, M);			//C0=det(M)
@@ -808,7 +1085,7 @@ int			impl_diag22(Comp *M, Comp *invS, Comp *D, Comp *S)//diagonalizes a complex
 	D[3].r=C[1].r+temp.r, D[3].i=C[1].i+temp.i;
 
 	nvec=0;
-	for(k=0;k<2&&nvec<2;++k)
+	for(k=0;k<2&&nvec<2;++k)//get eigenvectors
 	{
 		CMEMCPY(M2, M, 4);
 		M2[0].r-=D[3*k].r, M2[0].i-=D[3*k].i;//kth diagonal

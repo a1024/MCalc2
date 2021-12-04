@@ -59,6 +59,16 @@ bool		my_error(int start, int end)
 	return false;
 }
 
+//utility
+void		pack_rows(Comp *buffer, int dx_old, int dx_new, int dy)//dx_new < dx_old
+{
+	for(int k=1;k<dy;++k)
+	{
+		CMEMMOVE(buffer+dx_new*k, buffer+dx_old*k, dx_new);
+	//	print_matrix_debug(buffer, dx_new, dy);//
+	}
+}
+
 //inline math
 const double _e=exp(1.), _pi=acos(-1.), _torad=_pi/180, _todeg=180/_pi;
 inline double  cosd(double x){return cos(x*_torad);}
@@ -663,7 +673,7 @@ bool		r_postfix(Matrix &m, bool space_sensitive)//pre-allocated
 					return user_error2(idx0, idx, "Expected a closing parenthesis \')\'");
 				
 				if(mky.flags==M_UNSPECIFIED_RANGE)
-					mky.alloc_ramp(1, m.dy);
+					mky.alloc_ramp(1, m.dy, 1);
 				else
 				{
 					if(mky.dx>1&&mky.dy>1)
@@ -672,7 +682,7 @@ bool		r_postfix(Matrix &m, bool space_sensitive)//pre-allocated
 						std::swap(mky.dx, mky.dy);
 				}
 				if(mkx.flags==M_UNSPECIFIED_RANGE)
-					mkx.alloc_ramp(m.dx, 1);
+					mkx.alloc_ramp(m.dx, 1, 1);
 				else
 				{
 					if(mkx.dx>1&&mkx.dy>1)
@@ -813,8 +823,8 @@ bool		r_unary(Matrix &m, bool space_sensitive)
 		case T_SUM:case T_TRACE:
 		case T_REF:case T_RREF:case T_RREF2:
 		case T_DET:case T_INV:
-		case T_DIAG:case T_DIAG2:case T_DIAG3:
 		case T_LU:
+		case T_EGVAL:case T_NULLSPACE:case T_DIAG:
 		case T_SQRT:case T_CBRT:case T_EXP:case T_LN:case T_LOG:
 	//	case T_GAMMA:case T_LNGAMMA:
 		case T_COS:case T_ACOS:case T_COSD:case T_ACOSD:case T_COSH:case T_ACOSH:
@@ -943,9 +953,71 @@ bool		r_unary(Matrix &m, bool space_sensitive)
 					CREALLOC(m.data, m.data, m.dx*m.dy);
 				}
 				break;
-			case T_DIAG://TODO
-				return my_error(idx0, idx);
-			case T_DIAG2:
+			case T_EGVAL:
+				{
+					if(m.dy!=m.dx)
+						return user_error2(idx0, idx, "Expected a square matrix");
+					if(m.dx<=1)
+						break;
+					int size=m.dx*m.dx;
+					auto CALLOC(temp, m.dx);
+					if(m.dx==2)
+						impl_egval2(m.data, temp);
+					else if(m.dx==3)
+						impl_egval3(m.data, temp);
+					else
+					{
+						auto CALLOC(D, size);
+						impl_egval(m.data, m.dx, D, 1000);
+						for(int k=0, k2=0;k<size;k+=m.dx+1, ++k2)
+							temp[k2]=D[k];
+						CFREE(D);
+					}
+					CFREE(m.data);
+					m.data=temp;
+					m.dy=1;
+				}
+				break;
+			case T_NULLSPACE:
+				{
+					int size=m.dx*m.dx;
+					auto CALLOC(temp, size);
+					CMEMZERO(temp, size);
+					auto dep_flags=new char[m.dx];
+					auto row_idx=new short[m.dx];
+					int nvec=impl_nullspace(m.data, m.dx, m.dy, temp, dep_flags, row_idx);
+					delete[] dep_flags, row_idx;
+					pack_rows(temp, m.dx, nvec, m.dx);
+					//for(int k=1;k<m.dx;++k)//pack rows
+					//{
+					//	CMEMMOVE(temp+nvec*k, temp+m.dx*k, nvec);
+					////	print_matrix_debug(temp, nvec, m.dx);//
+					//}
+					CREALLOC(temp, temp, nvec*m.dx);
+					CFREE(m.data);
+					m.data=temp;
+					m.dy=m.dx;
+					m.dx=nvec;
+				}
+				break;
+			case T_DIAG:
+				if(m.dx*m.dy>1)
+				{
+					int dim=m.dx;
+					if(dim<m.dy)
+						dim=m.dy;
+					int size=dim*dim;
+					auto CALLOC(temp, size);
+					CMEMZERO(temp, size);
+					for(int ks=0, kd=0;kd<size;++ks, kd+=size+1)
+						temp[kd]=m.data[ks];
+					CFREE(m.data);
+					m.data=temp;
+					m.dx=m.dy=dim;
+				}
+				break;
+			//	return my_error(idx0, idx);
+		/*	case T_DIAG2:
 				{
 					if(m.dx!=2||m.dy!=2)
 						return user_error2(idx0, idx, "Expected a 2x2 matrix, got %dx%d", m.dy, m.dx);
@@ -961,7 +1033,7 @@ bool		r_unary(Matrix &m, bool space_sensitive)
 				}
 				break;
 			case T_DIAG3:
-				break;
+				break;//*/
 #define		EW_FUNC(FUNC)	for(int k=0, size=m.dx*m.dy;k<size;++k)FUNC(m.data[k]);
 			case T_SQRT:	EW_FUNC(c_sqrt)break;
 			case T_CBRT:	EW_FUNC(c_cbrt)break;
@@ -1012,6 +1084,7 @@ bool		r_unary(Matrix &m, bool space_sensitive)
 		case T_CMD:
 		case T_FRAC:
 		case T_CONV:
+		case T_EGVEC:
 		case T_LDIV:
 		case T_CROSS:
 			{
@@ -1066,6 +1139,42 @@ bool		r_unary(Matrix &m, bool space_sensitive)
 						CFREE(m.data);
 						m.data=temp;
 						m.dx+=m2.dx-1;
+					}
+					break;
+				case T_EGVEC:
+					{
+						if(m.dy!=m.dx)
+							return user_error2(idx0, idx, "Expected a square matrix");
+						int size=m.dx*m.dy;
+						auto CALLOC(temp, size);
+						Comp *lambdas=nullptr;
+						bool copy_lambdas=m2.dx==1||m2.dy==1;
+						if(copy_lambdas)//vector
+						{
+							int vecsize=m2.dx*m2.dy;
+							if(vecsize!=m.dx)
+								return user_error2(idx0, idx, "Expected %d eigenvalues, got %d", m.dx, vecsize);
+							lambdas=m2.data;
+						}
+						else//diagonal matrix
+						{
+							if(m2.dx!=m2.dy)
+								return user_error2(idx0, idx, "Expected a square matrix");
+							if(m2.dx!=m.dx)
+								return user_error2(idx0, idx, "Expected a diagonal square matrix of size %d", m.dx);
+							CALLOC(lambdas, m.dx);
+							for(int k=0;k<m.dx;++k)
+								lambdas[k]=m2.data[(m.dx+1)*k];
+						}
+						int nvec=impl_egvec(m.data, m.dx, lambdas, temp);
+						if(nvec<m.dx)
+						{
+							pack_rows(temp, m.dx, nvec, m.dx);
+							CREALLOC(temp, temp, nvec*m.dx);
+						}
+						CFREE(m.data);
+						m.data=temp;
+						m.dx=nvec;
 					}
 					break;
 				case T_LDIV://TODO

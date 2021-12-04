@@ -75,7 +75,12 @@ extern "C"
 	void	impl_matpow(Comp *dst, Comp *m1, int e, int dx);//dst: dx*dx,  m1: dx*(dx*2)		calculates m1^e,	m1 is destroyed
 
 	void	impl_lu(Comp const *m, int n, Comp *lower, Comp *upper);
-	int		impl_diag22(Comp *M, Comp *invS, Comp *D, Comp *S);
+	void	impl_egval2(Comp const *M, Comp *lambdas);
+	void	impl_egval3(Comp const *M, Comp *lambdas);
+	void	impl_egval(Comp const *M, int n, Comp *D, int it_limit);
+	int		impl_nullspace(Comp *M, int dx, int dy, Comp *solution, char *dep_flags, short *row_idx);
+	int		impl_egvec(Comp const *M, int n, Comp const *lambdas, Comp *S);
+//	int		impl_diag2(Comp const *M, Comp *invS, Comp *D, Comp *S);
 	
 	void	impl_polmul(Comp *res, Comp const *A, Comp const *B, int asize, int bsize, int add);//res has correct size of (asize+bsize-1)
 }
@@ -285,13 +290,13 @@ struct		Matrix//8+4 bytes
 	Comp const& get(int kx, int ky)const{return data[dx*ky+kx];}
 	Comp*		end()		{return data+dx*dy;}
 	Comp const*	end()const	{return data+dx*dy;}
-	void alloc_ramp(short dx, short dy)
+	void alloc_ramp(short dx, short dy, double start)
 	{
 		this->dy=dy, this->dx=dx;
 		int size=dy*dx;
 		CALLOC(data, size);
 		for(int k=0;k<size;++k)
-			data[k].r=k, data[k].i=0;
+			data[k].r=start+k, data[k].i=0;
 	}
 	//void reset()
 	//{
