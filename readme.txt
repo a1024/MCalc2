@@ -43,6 +43,7 @@ General functions:
   printmode(n): n=0: Print decimals, n=1: Print fractions
 Numbers:
   floor/ceil/round: Element-wise
+  min/max/mean/sum: Reduce columns then rows (Matlab-style)
   frac(x, tolerance): Returns [floor(x), num, den]
   rand: Random number in [0, 1] (seed with RDTSC)
 Vectors:

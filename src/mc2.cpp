@@ -74,6 +74,7 @@ void		print_help()
 		"  printmode(n): n=0: Print decimals, n=1: Print fractions\n"
 		"Numbers:\n"
 		"  floor/ceil/round: Element-wise\n"
+		"  min/max/mean/sum: Reduce columns then rows (Matlab-style)\n"
 		"  frac(x, tolerance): Returns [floor(x), num, den]\n"
 		"  rand: Random number in [0, 1] (seed with RDTSC)\n"
 		"Vectors:\n"
@@ -140,7 +141,7 @@ bool		get_str_from_file(std::string &str)
 }
 int			main(int argc, const char **argv)
 {
-	set_console_buffer_size(80, 4000);
+	set_console_buffer_size(120, 4000);
 	printf("MCALC%s\n\n", argc==2?"":"\t\tCtrl C to exit.");
 
 	std::string str;
@@ -186,7 +187,11 @@ int			main(int argc, const char **argv)
 	}
 	else
 	{
-		print_help();//
+		printf(
+			"Enter \'help\' for documentation.\n"
+			"\n"
+			);
+	//	print_help();//
 		get_str_interactive(str, 0);
 	}
 
