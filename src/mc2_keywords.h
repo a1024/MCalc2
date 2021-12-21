@@ -22,6 +22,7 @@ TOKEN("dft", T_DFT) TOKEN("idft", T_IDFT)
 TOKEN("dct", T_DCT) TOKEN("idct", T_IDCT)
 
 //generic functions
+TOKEN("floor", T_FLOOR) TOKEN("ceil", T_CEIL) TOKEN("round", T_ROUND)
 TOKEN("sqrt", T_SQRT) TOKEN("cbrt", T_CBRT) TOKEN("exp", T_EXP) TOKEN("ln", T_LN) TOKEN("log", T_LOG)
 TOKEN("gamma", T_GAMMA) TOKEN("lngamma", T_LNGAMMA)
 TOKEN("cos", T_COS) TOKEN("acos", T_ACOS) TOKEN("cosd", T_COSD) TOKEN("acosd", T_ACOSD) TOKEN("cosh", T_COSH) TOKEN("acosh", T_ACOSH)

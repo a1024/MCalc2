@@ -185,6 +185,21 @@ inline double c_distance(Comp const &a, Comp const &b)
 	double r=a.r-b.r, i=a.i-b.i;
 	return r*r+i*i;
 }
+inline void c_floor(Comp &z)
+{
+	z.r=floor(z.r);
+	z.i=floor(z.i);
+}
+inline void c_ceil(Comp &z)
+{
+	z.r=ceil(z.r);
+	z.i=ceil(z.i);
+}
+inline void c_round(Comp &z)
+{
+	z.r=round(z.r);
+	z.i=round(z.i);
+}
 inline void c_mul_i(Comp &z)
 {
 	double temp=z.r;
@@ -1012,6 +1027,7 @@ bool		r_unary(Matrix &m, bool space_sensitive)
 		case T_DET:case T_INV:
 		case T_LU:
 		case T_EGVAL:case T_NULLSPACE:case T_DIAG:
+		case T_FLOOR:case T_CEIL:case T_ROUND:
 		case T_SQRT:case T_CBRT:case T_EXP:case T_LN:case T_LOG:
 	//	case T_GAMMA:case T_LNGAMMA:
 		case T_COS:case T_ACOS:case T_COSD:case T_ACOSD:case T_COSH:case T_ACOSH:
@@ -1345,6 +1361,9 @@ bool		r_unary(Matrix &m, bool space_sensitive)
 			case T_DIAG3:
 				break;//*/
 #define		EW_FUNC(FUNC)	for(int k=0, size=m.dx*m.dy;k<size;++k)FUNC(m.data[k]);
+			case T_FLOOR:	EW_FUNC(c_floor)break;
+			case T_CEIL:	EW_FUNC(c_ceil)break;
+			case T_ROUND:	EW_FUNC(c_round)break;
 			case T_SQRT:	EW_FUNC(c_sqrt)break;
 			case T_CBRT:	EW_FUNC(c_cbrt)break;
 			case T_EXP:		EW_FUNC(c_exp)break;

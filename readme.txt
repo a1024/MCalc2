@@ -4,8 +4,7 @@ Usage:
   mcalc2 ["expression"/"filename"]
 
 Syntax:
-  Use Matlab-style vectors & matrices.
-  Row elements are separated by commas or spaces, for example:
+  Use Matlab-style vectors & matrices, for example:
     [a2 a1 a0] or [a2, a1, a0] is a row vector
     [a11, a12;  a21, a22]      is a 2x2 matrix
   Use same square brackets to access matrix elements, for example:
@@ -28,7 +27,7 @@ Operators by precedence (first to last):
 Notes:
   '     is transpose (eg: M')
   o     is the tensor product
-  \     is for square matrices (eg: A\B)
+  \     is matrix division from left (first matrix should be square)
   .* ./ are element-wise operations
 
 Keywords:
@@ -43,6 +42,7 @@ General functions:
   cmd(w, h): Set console buffer size (in characters)
   printmode(n): n=0: Print decimals, n=1: Print fractions
 Numbers:
+  floor/ceil/round: Element-wise
   frac(x, tolerance): Returns [floor(x), num, den]
   rand: Random number in [0, 1] (seed with RDTSC)
 Vectors:
@@ -55,18 +55,18 @@ Matrices:
   nullspace: Null space of a matrix
 Square matrices:
   I(n): n-square identity matrix
-  det: determinant of square matrix
-  inv: inverse of square matrix
-  tr: trace of square matrix
-  lu: LU factorization of square matrix
-  diag: make a diagonal matrix
+  det: Determinant of square matrix
+  inv: Inverse of square matrix
+  tr: Trace of square matrix
+  lu: LU Factorization of square matrix
+  diag: Make a diagonal matrix
   egval: Eigenvalues of a matrix
   egvec(M, L): Eigenvectors, given matrix M and eigenvalues L
 Polynomials:
   conv: Multiply polynomials
   polpow: Raise a polynomial power an integer
   roots: Find the roots of a polynomial
-Matrices & polynomials:
+DSP:
   dft/idft: Discrete Fourier Transform
   dct/idct: Discrete Cosine Transforms II/III
 
