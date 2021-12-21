@@ -47,6 +47,10 @@ extern "C"
 	double	_10pow(int n);
 	
 	void	dec2frac(double x, double error, int *i, int *num, int *den);
+	int		query_double(double x, int *point);
+	int		print_double(double x, int point_pos, int total);//point_pos==0: no leading spaces, total==0: no trailing spaces
+	int		print_double_frac(double x, int point_pos, int total);
+	void	print_matrix(Comp const *data, int w, int h);
 	void	print_matrix_debug(Comp const *buf, int w, int h);
 
 	double	c_abs2(Comp *z);
@@ -152,6 +156,7 @@ extern StringLibrary strings;
 enum		MatrixFlags
 {
 	M_UNSPECIFIED_RANGE	=0x00000001,
+	M_POLYNOMIAL_MASK	=0x0000FFFF,
 	M_SCALAR			=0x00010001,
 };
 struct		Matrix//8+4 bytes
@@ -159,10 +164,17 @@ struct		Matrix//8+4 bytes
 	//TokenType type;
 	union
 	{
+		//dx & dy == 0: unspecified range
+		//dy==0: polynomial
+		//otherwise: matrix
 		unsigned flags;
 		struct{unsigned short dx, dy;};
 	};
-	Comp *data;//complex numbers are interleaved
+	union
+	{
+		Comp *data;//complex numbers are interleaved
+		Matrix *poly;
+	};
 	char *name;//freed by StringLibrary
 	Matrix():dx(0), dy(0), data(nullptr), name(nullptr){}
 	Matrix(Matrix const &other):dx(other.dx), dy(other.dy), data(other.data), name(other.name){}
@@ -227,48 +239,7 @@ struct		Matrix//8+4 bytes
 		}
 		return *this;
 	}
-	void print()
-	{
-		if(!data)
-		{
-			printf("Error: matrix.data == nullptr\n");
-			return;
-		}
-		//if(name)
-		//	printf("%s =\n", name);
-		if(flags==M_SCALAR)
-		{
-			if(abs(data->i)>1e-10)//complex scalar
-				printf("%4g+%4gi\n", data->r, data->i);
-			else if(abs(data->r)>1e-10)
-				printf("%4g\n", data->r);
-			else
-				printf("   0\n");
-		}
-		else//matrix
-		{
-			printf("[\n");
-			for(int ky=0;ky<dy;++ky)
-			{
-				for(int kx=0;kx<dx;++kx)
-				{
-					auto &z=data[dx*ky+kx];
-					//auto &r=RDATA(dx, kx, ky), &i=IDATA(dx, kx, ky);
-					if(abs(z.i)>1e-10)
-						printf("%4g+%4gi", z.r, z.i);
-					else if(abs(z.r)>1e-10)
-						printf("%4g", z.r);
-					else
-						printf("   0");
-					if(kx<dx-1)
-						printf(",");
-				}
-				if(ky<dy-1)
-					printf(";\n");
-			}
-			printf("\n]\n");
-		}
-	}
+	void print();
 	void move2temp(Matrix &m)//to be used on temp matrices (eg: 2*x, x looses its name)
 	{
 #ifdef DEBUG_MEMORY

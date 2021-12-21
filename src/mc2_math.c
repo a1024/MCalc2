@@ -181,6 +181,32 @@ double		_10pow(int n)
 
 
 //complex functions
+#define		G_BUF_SIZE	1024
+static char	g_buf[G_BUF_SIZE]={0};
+int			query_double(double x, int *point)
+{
+	if(point)
+		*point=sprintf_s(g_buf, G_BUF_SIZE, "%lld", (long long)floor(x));
+	return sprintf_s(g_buf, G_BUF_SIZE, "%g", x);
+}
+int			print_double(double x, int point_pos, int total)//point_pos==0: no leading spaces, total==0: no trailing spaces
+{
+//	int nbefore=sprintf_s(g_buf, G_BUF_SIZE, "%lld", (long long)abs(x));
+	double a=abs(x);
+	long long i=(long long)a;
+	int nbefore=sprintf_s(g_buf, G_BUF_SIZE, "%lld", i);
+	int nafter=sprintf_s(g_buf, G_BUF_SIZE, "%g", a-i)-2;
+	int neg=x<0;
+	int nspaces=point_pos-nbefore-neg;
+	if(nspaces<0)
+		nspaces=0;
+	if(total&&nspaces+neg+nafter>total)
+		return printf("%*s%.*lf", nspaces, "", total-(nspaces+neg), x);
+	int printed=printf("%*s%g", nspaces, "", x);
+	if(printed<total)
+		printed+=printf("%*s", total-printed, "");
+	return printed;
+}
 void		dec2frac(double x, double error, int *i, int *num, int *den)//https://stackoverflow.com/questions/5124743/algorithm-for-simplifying-decimal-to-fractions
 {
 	int lower_n, upper_n, middle_n,
@@ -212,6 +238,35 @@ void		dec2frac(double x, double error, int *i, int *num, int *den)//https://stac
 	}
 	*i=n, *num=middle_n, *den=middle_d;
 }
+int			print_double_frac(double x, int point_pos, int total)
+{
+	int i, num, den, printed=0;
+
+	if(fabs(x)<1e-10)
+		printed=printf("%*s0", (point_pos-1)&-(point_pos>0), "");
+	//else if(x==floor(x))
+	//	printed=printf("%*g", point_pos, x);
+	else
+	{
+		dec2frac(x, 1e-10, &i, &num, &den);
+
+		if(num)
+		{
+			if(i>-5&&i<5)
+				printed=printf("%*d/%d", point_pos, num+i*den, den);
+			else if(den<1000)
+				printed=printf("%*d+%d/%d", point_pos, i, num, den);
+			else
+				printed=print_double(x, point_pos, total);
+		}
+		else
+			printed=printf("%*d", point_pos, i);
+	}
+	if(printed<total)
+		printf("%*s", total-printed, "");
+	return printed;
+}
+
 void		print_value(Comp const *c)
 {
 	int i, num, den;
@@ -262,6 +317,23 @@ void		print_matrix_debug(Comp const *data, int w, int h)
 	}
 	printf("\n");
 }
+
+/*void		print_matrix(Comp const *data, int w, int h)
+{
+	int kx, ky;
+
+	for(ky=0;ky<h;++ky)
+	{
+		for(kx=0;kx<w;++kx)
+		{
+			printf(" ");
+		}
+		printf("\n");
+	}
+}
+void		print_matrix_frac(Comp const *data, int w, int h)
+{
+}//*/
 
 double		c_abs2(Comp const *z){return z->r*z->r+z->i*z->i;}
 void		c_inv(Comp *dst, const Comp *z)

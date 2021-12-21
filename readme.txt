@@ -1,5 +1,4 @@
 MCALC2: A Matrix Calculator
-
 Usage:
   mcalc2 ["expression"/"filename"]
 
@@ -32,13 +31,17 @@ Notes:
   .* ./ are element-wise operations
 
 Keywords:
-  help: Print this info (works in cmd)
+  help: Prints this info (works in cmd)
   clear: Clears all variables from memory
   vars: Shows all variables & answer count
-  open: Choose a text file to open
+  open: Opens a text file
 General functions:
   ans(n): The n-th answer
-  cmd(w, h): set console buffer size (in characters)
+  cmd(w, h): Set console buffer size (in characters)
+  printmode(n): n=0: Print decimals, n=1: Print fractions
+Numbers:
+  frac(x, tolerance): Returns [floor(x), num, den]
+  rand: Random number in [0, 1] (seed with RDTSC)
 Vectors:
   cross(3D vec, 3D vec) -> 3D vec
   cross(2D vec, 2D vec) -> scalar

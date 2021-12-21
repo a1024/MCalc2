@@ -21,6 +21,86 @@
 #include	"mc2.h"
 const char	file[]=__FILE__;
 
+bool		print_fractions=false;
+void		Matrix::print()
+{
+	if(!data)
+	{
+		printf("nullptr\n");
+		//printf("Error: matrix.data == nullptr\n");
+		return;
+	}
+	auto prind_func=print_fractions?print_double_frac:print_double;
+	if(flags==M_SCALAR)//no brackets
+	{
+		if(abs(data->i)>1e-10)//complex scalar
+		{
+			prind_func(data->r, 4, 0);//12
+			printf("+");
+			prind_func(data->i, 0, 0);
+			printf("i\n");
+		}
+		//	printf("%4g+%4gi\n", data->r, data->i);
+		else if(abs(data->r)>1e-10)
+		{
+			prind_func(data->r, 4, 0);
+			printf("\n");
+		}
+		//	printf("%4g\n", data->r);
+		else
+			printf("   0\n");
+	}
+	else//matrix
+	{
+		auto colsizes=new char[dx*3];//{neg, point, total}
+		memset(colsizes, 0, dx*3);
+		for(int ky=0;ky<dy;++ky)
+		{
+			for(int kx=0;kx<dx;++kx)
+			{
+				auto &x=data[dx*ky+kx].r;
+				int point=0;
+				int total=query_double(x, &point);
+				auto p=colsizes+3*kx;
+				p[0]|=x<0;
+				if(p[1]<p[0]-(x<0)+point)
+					p[1]=p[0]-(x<0)+point;
+				if(p[2]<p[0]-(x<0)+total)
+					p[2]=p[0]-(x<0)+total;
+			}
+		}
+		printf("[\n");
+		for(int ky=0;ky<dy;++ky)
+		{
+			for(int kx=0;kx<dx;++kx)
+			{
+				auto &z=data[dx*ky+kx];
+				auto p=colsizes+3*kx;
+				printf(" ");
+				if(abs(z.i)>1e-10)
+				{
+					prind_func(z.r, p[1], p[2]);
+					printf("+");
+					prind_func(z.i, 0, 0);
+					printf("*i");
+				}
+				//	printf("%4g+%4gi", z.r, z.i);
+				else if(abs(z.r)>1e-10)
+					prind_func(z.r, p[1], p[2]);
+				//	printf("%4g", z.r);
+				else
+					printf("%*s0", p[2]-1, "");
+				//if(kx<dx-1)
+				//	printf(",");
+			}
+			if(ky<dy-1)
+				printf("\n");
+				//printf(";\n");
+		}
+		printf("\n]\n");
+		delete[] colsizes;
+	}
+}
 std::vector<Matrix> g_answers;
 std::map<char*, Matrix> g_vars;
 std::vector<std::string> errors;
@@ -546,7 +626,7 @@ inline bool	obj_mod(Matrix &m, Matrix &m2, int idx0)
 int			parse_incomplete=false;
 
 //precedence (first to last):
-//	calls & brackets	f(a)	(a)		[a]
+//	calls & brackets	f(a)	(a)		[a]		[[a]]
 //	postfix & power		a'		a[b]	a^b
 //	prefix				-a		+a
 //	multicplicative		a*b		a o b	a/b		a\b		a%b		a.*b	a./b
@@ -812,11 +892,12 @@ bool		r_unary(Matrix &m, bool space_sensitive)
 	for(;;)
 	{
 		int idx0=idx;
-		switch(auto t=lex_get(space_sensitive))
+		auto t=lex_get(space_sensitive);
+		switch(t)
 		{
 			//region - functions
 #if 1
-		case T_ANS:
+		case T_ANS:case T_PRINTMODE:
 		case T_ROOTS:
 		case T_SAMPLE:case T_INVZ:
 		case T_IDEN:
@@ -834,12 +915,23 @@ bool		r_unary(Matrix &m, bool space_sensitive)
 		case T_TAN:case T_ATAN:case T_TAND:case T_ATAND:case T_TANH:case T_ATANH:
 		case T_COT:case T_ACOT:case T_COTD:case T_ACOTD:case T_COTH:case T_ACOTH:
 			m.name=nullptr;
-			if(lex_get(false)!=T_LPR)
-				return user_error2(idx0, idx, "Expected an opening parenthesis \'(\' of function call");
-			if(!r_assign_expr(m, false))
-				return false;
-			if(lex_get(false)!=T_RPR)
-				return user_error2(idx0, idx, "Expected a closing parenthesis \')\' of function call");
+			{
+				int idx1=idx;
+				if(lex_get(false)==T_LPR)
+				{
+					if(!r_assign_expr(m, false))
+						return false;
+					if(lex_get(false)!=T_RPR)
+						return user_error2(idx0, idx, "Expected a closing parenthesis \')\' of function call");
+				}
+				else//parentheses are optional for unary functions
+				{
+					idx=idx1;
+					if(!r_unary(m, space_sensitive))
+						return false;
+				}
+					//return user_error2(idx0, idx, "Expected an opening parenthesis \'(\' of function call");
+			}
 			switch(t)
 			{
 			case T_ANS:
@@ -854,6 +946,17 @@ bool		r_unary(Matrix &m, bool space_sensitive)
 					if(a_idx>=(int)g_answers.size())
 						a_idx=g_answers.size()-1;
 					m=g_answers[a_idx];
+				}
+				break;
+			case T_PRINTMODE:
+				{
+					int i=0;
+					get_int(m, idx0, i);
+					print_fractions=i!=0;
+					if(print_fractions)
+						printf("Fractions: ON\n");
+					else
+						printf("Fractions: OFF\n");
 				}
 				break;
 			case T_ROOTS://TODO
@@ -1219,54 +1322,53 @@ bool		r_unary(Matrix &m, bool space_sensitive)
 #if 1
 		case T_NUMBER:
 			m.name=nullptr;
-			//m.type=T_REAL;
-			m.dx=1, m.dy=1;
+			m.dx=m.dy=1;
 			CALLOC(m.data, 1);
-			//m.data=(double*)malloc(sizeof(double));
 			m.data->r=lex_number, m.data->i=0;
+			return r_postfix(m, space_sensitive);
+		case T_RAND:
+			m.name=nullptr;
+			m.dx=m.dy=1;
+			CALLOC(m.data, 1);
+			srand((unsigned)__rdtsc());
+			m.data->r=(double)rand()/RAND_MAX, m.data->i=0;
 			return r_postfix(m, space_sensitive);
 		case T_IMAG:
 		case T_IMAG_UNUSED:
 			m.name=nullptr;
-			//m.type=T_COMPLEX;
-			m.dx=1, m.dy=1;
+			m.dx=m.dy=1;
 			CALLOC(m.data, 2);
-			//m.data=(double*)malloc(2*sizeof(double));
 			m.data->r=0, m.data->i=1;
 			return r_postfix(m, space_sensitive);
 		case T_EULER:
 			m.name=nullptr;
-			//m.type=T_REAL;
-			m.dx=1, m.dy=1;
+			m.dx=m.dy=1;
 			CALLOC(m.data, 1);
-			//m.data=(double*)malloc(sizeof(double));
 			m.data->r=_e, m.data->i=0;
 			return r_postfix(m, space_sensitive);
 		case T_PI:
 			m.name=nullptr;
-			//m.type=T_REAL;
-			m.dx=1, m.dy=1;
+			m.dx=m.dy=1;
 			CALLOC(m.data, 1);
-			//m.data=(double*)malloc(sizeof(double));
 			m.data->r=_pi, m.data->i=0;
 			return r_postfix(m, space_sensitive);
 		case T_INF:
 			m.name=nullptr;
-			//m.type=T_REAL;
-			m.dx=1, m.dy=1;
+			m.dx=m.dy=1;
 			CALLOC(m.data, 1);
-			//m.data=(double*)malloc(sizeof(double));
 			m.data->r=_HUGE, m.data->i=0;
 			return r_postfix(m, space_sensitive);
 		case T_NAN:
 			m.name=nullptr;
-			//m.type=T_REAL;
-			m.dx=1, m.dy=1;
+			m.dx=m.dy=1;
 			CALLOC(m.data, 1);
-			//m.data=(double*)malloc(sizeof(double));
 			m.data->r=_HUGE-_HUGE, m.data->i=0;
 			return r_postfix(m, space_sensitive);
 #endif
+		case T_POLY:
+			{
+			}
+			break;
 		case T_MINUS:
 			m.name=nullptr;
 			if(!r_unary(m, space_sensitive))
@@ -1293,7 +1395,7 @@ bool		r_unary(Matrix &m, bool space_sensitive)
 			if(lex_get(false)!=T_RPR)
 				return false;
 			return r_postfix(m, space_sensitive);
-		case T_LBRACKET:
+		case T_LBRACKET://matrix
 			{
 				m.name=nullptr;
 				if(!r_row_vector(m))
@@ -1338,6 +1440,23 @@ bool		r_unary(Matrix &m, bool space_sensitive)
 					return user_error2(idx0, idx, "Expected a closing bracket \']\'");
 			}
 			return r_postfix(m, space_sensitive);
+	/*	case T_POLSTART:
+			{
+				lex_skip_space();
+				if(!r_equality(m, true))
+					return false;
+				for(;;)
+				{
+					int idx0=idx;
+					switch(auto t=lex_get(true))
+					{
+					case T_SPACE:
+					case T_COMMA:
+						break;
+					}
+				}
+			}
+			return r_postfix(m, space_sensitive);//*/
 		case T_ID://TODO: look up variable name
 			{
 				auto it=g_vars.find(lex_id);
@@ -1884,6 +2003,13 @@ int			solve(std::string &str, bool again)
 			if(!printed)
 				printf("Nothing to show\n");
 		}
+		ret=SOLVE_OK_NO_ANS;
+		break;
+	case T_FRACTIONS:
+		if(print_fractions=!print_fractions)
+			printf("Fractions: ON\n");
+		else
+			printf("Fractions: OFF\n");
 		ret=SOLVE_OK_NO_ANS;
 		break;
 	case T_GFSET://TODO

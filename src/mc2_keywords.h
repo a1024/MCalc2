@@ -2,9 +2,9 @@
 TOKEN(0, T_IGNORED)
 
 //functions
-TOKEN("ans", T_ANS) TOKEN("cmd", T_CMD)//general
+TOKEN("ans", T_ANS) TOKEN("cmd", T_CMD) TOKEN("printmode", T_PRINTMODE)//general
 TOKEN("frac", T_FRAC)//numbers
-TOKEN("conv", T_CONV) TOKEN("roots", T_ROOTS)//polynomials
+TOKEN("conv", T_CONV) TOKEN("roots", T_ROOTS) TOKEN("poly", T_POLY)//polynomials
 TOKEN("ldiv", T_LDIV) TOKEN("sample", T_SAMPLE) TOKEN("invz", T_INVZ)//fractions
 TOKEN("cross", T_CROSS)//row vectors
 
@@ -16,7 +16,7 @@ TOKEN("det", T_DET) TOKEN("inv", T_INV) TOKEN("lu", T_LU)
 TOKEN("egval", T_EGVAL) TOKEN("egvec", T_EGVEC) TOKEN("nullspace", T_NULLSPACE) TOKEN("diag", T_DIAG)
 //TOKEN("diag2", T_DIAG2) TOKEN("diag3", T_DIAG3)
 
-TOKEN("dft", T_DFT) TOKEN("fft", T_FFT_UNUSED) TOKEN("idft", T_IDFT) TOKEN("ifft", T_IFFT_UNUSED)//matrices & polynomials
+TOKEN("dft", T_DFT) TOKEN("fft", T_FFT_UNUSED) TOKEN("idft", T_IDFT) TOKEN("ifft", T_IFFT_UNUSED) TOKEN("dct", T_DCT) TOKEN("idct", T_IDCT)//matrices & polynomials
 
 //generic functions
 TOKEN("sqrt", T_SQRT) TOKEN("cbrt", T_CBRT) TOKEN("exp", T_EXP) TOKEN("ln", T_LN) TOKEN("log", T_LOG)
@@ -44,18 +44,20 @@ TOKEN("=", T_ASSIGN)
 
 //control
 TOKEN(",", T_COMMA) TOKEN(";", T_SEMICOLON)
-TOKEN("[", T_LBRACKET) TOKEN("]", T_RBRACKET)
 TOKEN("(", T_LPR) TOKEN(")", T_RPR)
+TOKEN("[", T_LBRACKET) TOKEN("]", T_RBRACKET)	//matrix/vector
+//TOKEN("[[", T_POLSTART) TOKEN("]]", T_POLEND)	//polynomial	//X  need nested structure support
+//TOKEN("{", T_LBRACE) TOKEN("}", T_RBRACE)		//scope
 
 //commands
 TOKEN("help", T_HELP)
 TOKEN("open", T_OPEN)
-TOKEN("clear", T_CLEAR) TOKEN("vars", T_VARS)
+TOKEN("clear", T_CLEAR) TOKEN("vars", T_VARS) TOKEN("fractions", T_FRACTIONS)
 TOKEN("gfset", T_GFSET)
 TOKEN("exit", T_EXIT) TOKEN("quit", T_QUIT)
 
 //constants
-TOKEN("i", T_IMAG) TOKEN("j", T_IMAG_UNUSED) TOKEN("e", T_EULER) TOKEN("pi", T_PI) TOKEN("inf", T_INF) TOKEN("nan", T_NAN)
+TOKEN("i", T_IMAG) TOKEN("j", T_IMAG_UNUSED) TOKEN("e", T_EULER) TOKEN("pi", T_PI) TOKEN("inf", T_INF) TOKEN("nan", T_NAN) TOKEN("rand", T_RAND)
 
 //lexer stuff
 TOKEN(0, T_SPACE) TOKEN(0, T_NEWLINE) TOKEN(0, T_EOF)//consequent in this order
