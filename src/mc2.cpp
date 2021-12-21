@@ -99,9 +99,9 @@ void		print_help()
 	//	"  sample(F): s to z domain\n"
 	//	"  ldiv(F, S): long division of fraction F by S steps\n"
 	//	"  plot(F, S): long division\n"
-	//	"Matrices & polynomials:\n"
-	//	"  dft/fft: Discrete Fourier Transform\n"
-	//	"  idft/ifft: Inverse Discrete Fourier Transform\n"
+		"Matrices & polynomials:\n"
+		"  dft/idft: Discrete Fourier Transform\n"
+		"  dct/idct: Discrete Cosine Transforms II/III\n"
 		"\n"
 		);
 }

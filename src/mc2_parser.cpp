@@ -464,6 +464,78 @@ inline void c_acoth(Comp &z)
 	c_inv(&z, &z);
 	c_atan(z);
 }
+
+void		dft_init(int size, Comp *&weights, Comp *&temp, bool inverse)
+{
+	CALLOC(weights, size*size);
+	CALLOC(temp, size);
+	double scale_re=1/sqrt(size), scale_im, freq=2*_pi/size;
+	if(inverse)
+		scale_im=-scale_re;
+	else
+		scale_im=scale_re;
+	for(int ky=0;ky<size;++ky)
+	{
+		auto row=weights+size*ky;
+		for(int kx=0;kx<size;++kx)
+		{
+			row[kx].r=scale_re*cos(freq*kx*ky);
+			row[kx].i=scale_im*sin(freq*kx*ky);
+		}
+	}
+}
+void		dft_apply_1D(Comp *data, Comp *weights, Comp *temp, int size, int stride)
+{
+	for(int k=0;k<size;++k)
+	{
+		auto row=weights+size*k;
+		temp[k].r=temp[k].i=0;
+		for(int ks=0, kd=0;kd<size;ks+=stride, ++kd)
+			c_mul_add(temp+k, row+kd, data+ks);
+	}
+	for(int ks=0, kd=0;kd<size;++ks, kd+=stride)
+		data[kd]=temp[ks];
+}
+void		dft_finish(Comp *&weights, Comp *&temp)
+{
+	CFREE(weights), weights=nullptr;
+	CFREE(temp), temp=nullptr;
+}
+
+void		dct_init(int size, Comp *&weights, Comp *&temp)
+{
+	CALLOC(weights, size*size);
+	CALLOC(temp, size);
+	double scale=sqrt(2./size), freq=_pi/size;
+	for(int ky=0;ky<size;++ky)
+	{
+		auto row=weights+size*ky;
+		for(int kx=0;kx<size;++kx)
+		{
+			row[kx].r=scale*cos(freq*(kx+0.5)*ky);
+			row[kx].i=0;
+		}
+	}
+}
+void		idct_init(int size, Comp *&weights, Comp *&temp)
+{
+	CALLOC(weights, size*size);
+	CALLOC(temp, size);
+	double scale=sqrt(2./size), freq=_pi/size;
+	for(int ky=0;ky<size;++ky)
+	{
+		auto row=weights+size*ky;
+		for(int kx=0;kx<size;++kx)
+		{
+			if(!kx)
+				row[kx].r=scale*0.5;
+			else
+				row[kx].r=scale*cos(freq*kx*(ky+0.5));
+			row[kx].i=0;
+		}
+	}
+}
+
 inline bool	check_scalar(Matrix &m, int idx0)
 {
 	if(m.dx!=1||m.dy!=1)
@@ -914,6 +986,9 @@ bool		r_unary(Matrix &m, bool space_sensitive)
 		case T_CSC:case T_ACSC:case T_CSCD:case T_ACSCD:case T_CSCH:case T_ACSCH:
 		case T_TAN:case T_ATAN:case T_TAND:case T_ATAND:case T_TANH:case T_ATANH:
 		case T_COT:case T_ACOT:case T_COTD:case T_ACOTD:case T_COTH:case T_ACOTH:
+		case T_DFT:case T_IDFT:
+	//	case T_FFT:case T_IFFT:
+		case T_DCT:case T_IDCT:
 			m.name=nullptr;
 			{
 				int idx1=idx;
@@ -1181,6 +1256,51 @@ bool		r_unary(Matrix &m, bool space_sensitive)
 			case T_COTH:	EW_FUNC(c_coth)break;
 			case T_ACOTH:	EW_FUNC(c_acoth)break;
 #undef		EW_FUNC
+			case T_DFT:
+			case T_IDFT:
+				{
+					int size=m.dx*m.dy;
+					Comp *weights=nullptr, *temp=nullptr;
+					dft_init(m.dx, weights, temp, t==T_IDFT);
+					for(int ky=0;ky<m.dy;++ky)
+						dft_apply_1D(m.data+m.dx*ky, weights, temp, m.dx, 1);
+					if(m.dx!=m.dy)
+					{
+						dft_finish(weights, temp);
+						dft_init(m.dy, weights, temp, t==T_IDFT);
+					}
+					for(int kx=0;kx<m.dx;++kx)
+						dft_apply_1D(m.data+kx, weights, temp, m.dy, m.dx);
+					dft_finish(weights, temp);
+				}
+				break;
+			//case T_FFT:
+			//	break;
+			//case T_IFFT:
+			//	break;
+			case T_DCT:
+			case T_IDCT:
+				{
+					int size=m.dx*m.dy;
+					Comp *weights=nullptr, *temp=nullptr;
+					if(t==T_IDCT)
+						idct_init(m.dx, weights, temp);
+					else
+						dct_init(m.dx, weights, temp);
+					for(int ky=0;ky<m.dy;++ky)
+						dft_apply_1D(m.data+m.dx*ky, weights, temp, m.dx, 1);
+					if(m.dx!=m.dy)
+					{
+						dft_finish(weights, temp);
+						if(t==T_IDCT)
+							idct_init(m.dy, weights, temp);
+						else
+							dct_init(m.dy, weights, temp);
+					}
+					for(int kx=0;kx<m.dx;++kx)
+						dft_apply_1D(m.data+kx, weights, temp, m.dy, m.dx);
+					dft_finish(weights, temp);
+				}
 				break;
 			}
 			return r_postfix(m, space_sensitive);

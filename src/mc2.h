@@ -56,6 +56,7 @@ extern "C"
 	double	c_abs2(Comp *z);
 	void	c_inv(Comp *dst, const Comp *z);
 	void	c_mul(Comp *dst, const Comp *a, const Comp *b);
+	void	c_mul_add(Comp *dst, const Comp *a, const Comp *b);
 	void	c_div(Comp *dst, const Comp *a, const Comp *b);
 	void	c_mod(Comp *dst, const Comp *a, const Comp *b);
 

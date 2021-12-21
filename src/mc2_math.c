@@ -187,6 +187,8 @@ int			query_double(double x, int *point)
 {
 	if(point)
 		*point=sprintf_s(g_buf, G_BUF_SIZE, "%lld", (long long)floor(x));
+	if(fabs(x)<1e-10)
+		return 1;
 	return sprintf_s(g_buf, G_BUF_SIZE, "%g", x);
 }
 int			print_double(double x, int point_pos, int total)//point_pos==0: no leading spaces, total==0: no trailing spaces

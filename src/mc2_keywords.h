@@ -16,7 +16,10 @@ TOKEN("det", T_DET) TOKEN("inv", T_INV) TOKEN("lu", T_LU)
 TOKEN("egval", T_EGVAL) TOKEN("egvec", T_EGVEC) TOKEN("nullspace", T_NULLSPACE) TOKEN("diag", T_DIAG)
 //TOKEN("diag2", T_DIAG2) TOKEN("diag3", T_DIAG3)
 
-TOKEN("dft", T_DFT) TOKEN("fft", T_FFT_UNUSED) TOKEN("idft", T_IDFT) TOKEN("ifft", T_IFFT_UNUSED) TOKEN("dct", T_DCT) TOKEN("idct", T_IDCT)//matrices & polynomials
+//DSP
+TOKEN("dft", T_DFT) TOKEN("idft", T_IDFT)
+//TOKEN("fft", T_FFT) TOKEN("ifft", T_IFFT)
+TOKEN("dct", T_DCT) TOKEN("idct", T_IDCT)
 
 //generic functions
 TOKEN("sqrt", T_SQRT) TOKEN("cbrt", T_CBRT) TOKEN("exp", T_EXP) TOKEN("ln", T_LN) TOKEN("log", T_LOG)
