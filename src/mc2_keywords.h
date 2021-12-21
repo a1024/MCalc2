@@ -10,7 +10,7 @@ TOKEN("cross", T_CROSS)//row vectors
 
 //matrices
 TOKEN("I", T_IDEN)
-TOKEN("sum", T_SUM) TOKEN("tr", T_TRACE)
+TOKEN("sum", T_SUM) TOKEN("mean", T_MEAN) TOKEN("min", T_MIN) TOKEN("max", T_MAX) TOKEN("tr", T_TRACE)
 TOKEN("ref", T_REF) TOKEN("rref", T_RREF) TOKEN("rref2", T_RREF2)
 TOKEN("det", T_DET) TOKEN("inv", T_INV) TOKEN("lu", T_LU)
 TOKEN("egval", T_EGVAL) TOKEN("egvec", T_EGVEC) TOKEN("nullspace", T_NULLSPACE) TOKEN("diag", T_DIAG)

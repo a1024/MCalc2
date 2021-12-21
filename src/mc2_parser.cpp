@@ -35,9 +35,10 @@ void		Matrix::print()
 	auto prind_func=print_fractions?print_double_frac:print_double;
 	if(flags==M_SCALAR)//no brackets
 	{
+		printf(" ");
 		if(abs(data->i)>1e-10)//complex scalar
 		{
-			prind_func(data->r, 4, 0);//12
+			prind_func(data->r, 0, 0);//4, 12
 			if(data->i>0)
 				printf("+");
 			prind_func(data->i, 0, 0);
@@ -46,12 +47,12 @@ void		Matrix::print()
 		//	printf("%4g+%4gi\n", data->r, data->i);
 		else if(abs(data->r)>1e-10)
 		{
-			prind_func(data->r, 4, 0);
+			prind_func(data->r, 0, 0);
 			printf("\n");
 		}
 		//	printf("%4g\n", data->r);
 		else
-			printf("   0\n");
+			printf("0\n");
 	}
 	else//matrix
 	{
@@ -484,6 +485,31 @@ inline void c_acoth(Comp &z)
 	c_atan(z);
 }
 
+inline void	c_min(Comp &m0, double &mag, double &phase, Comp const &z)//Matlab style
+{
+	double mag2=z.r*z.r+z.i*z.i;
+	if(mag>mag2)
+		m0=z, mag=mag2, phase=atan2(z.i, z.r);
+	else if(mag==mag2)
+	{
+		double phase2=atan2(z.i, z.r);
+		if(phase>phase2)
+			m0=z, mag=mag2, phase=phase2;
+	}
+}
+inline void	c_max(Comp &m0, double &mag, double &phase, Comp const &z)//Matlab style
+{
+	double mag2=z.r*z.r+z.i*z.i;
+	if(mag<mag2)
+		m0=z, mag=mag2, phase=atan2(z.i, z.r);
+	else if(mag==mag2)
+	{
+		double phase2=atan2(z.i, z.r);
+		if(phase<phase2)
+			m0=z, mag=mag2, phase=phase2;
+	}
+}
+
 void		dft_init(int size, Comp *&weights, Comp *&temp, bool inverse)
 {
 	CALLOC(weights, size*size);
@@ -576,6 +602,7 @@ bool		polmul(Matrix &dst, Matrix const &a, Matrix const &b, int idx0)
 		CFREE(dst.data);
 	dst.data=temp;
 	dst.dx=a.dx+b.dx-1;
+	return true;
 }
 
 inline bool	check_scalar(Matrix &m, int idx0)
@@ -1022,7 +1049,7 @@ bool		r_unary(Matrix &m, bool space_sensitive)
 		case T_ROOTS:
 		case T_SAMPLE:case T_INVZ:
 		case T_IDEN:
-		case T_SUM:case T_TRACE:
+		case T_SUM:case T_MEAN:case T_MIN:case T_MAX:case T_TRACE:
 		case T_REF:case T_RREF:case T_RREF2:
 		case T_DET:case T_INV:
 		case T_LU:
@@ -1207,28 +1234,119 @@ bool		r_unary(Matrix &m, bool space_sensitive)
 				}
 				break;
 			case T_SUM://should work like in Matlab
+				if(m.dy==1)
+				{
+					for(int kx=1;kx<m.dx;++kx)
+					{
+						m.data[0].r+=m.data[kx].r;//SIMD
+						m.data[0].i+=m.data[kx].i;
+					}
+					m.dx=1;
+				}
+				else
+				{
+					for(int ky=1;ky<m.dy;++ky)
+					{
+						for(int kx=0;kx<m.dx;++kx)
+						{
+							m.data[kx].r+=m.data[m.dx*ky+kx].r;
+							m.data[kx].i+=m.data[m.dx*ky+kx].i;
+						}
+					}
+					m.dy=1;
+				}
+				CREALLOC(m.data, m.data, m.dy*m.dx);
+				break;
+			case T_MEAN:
+				if(m.dy==1)
+				{
+					for(int kx=1;kx<m.dx;++kx)
+					{
+						m.data[0].r+=m.data[kx].r;//SIMD
+						m.data[0].i+=m.data[kx].i;
+					}
+					m.data[0].r/=m.dx;
+					m.data[0].i/=m.dx;
+					m.dx=1;
+				}
+				else
+				{
+					for(int ky=1;ky<m.dy;++ky)
+					{
+						for(int kx=0;kx<m.dx;++kx)
+						{
+							m.data[kx].r+=m.data[m.dx*ky+kx].r;
+							m.data[kx].i+=m.data[m.dx*ky+kx].i;
+						}
+					}
+					double invdy=1./m.dy;
+					for(int kx=0;kx<m.dx;++kx)
+					{
+						m.data[kx].r*=invdy;
+						m.data[kx].i*=invdy;
+					}
+					m.dy=1;
+				}
+				CREALLOC(m.data, m.data, m.dy*m.dx);
+				break;
+			case T_MIN:
 				{
 					if(m.dy==1)
 					{
+						double mag=m.data[0].r*m.data[0].r+m.data[0].i*m.data[0].i,
+							phase=atan2(m.data[0].i, m.data[0].r);
 						for(int kx=1;kx<m.dx;++kx)
-						{
-							m.data[0].r+=m.data[kx].r;//SIMD
-							m.data[0].i+=m.data[kx].i;
-						}
+							c_min(m.data[0], mag, phase, m.data[kx]);
 						m.dx=1;
 					}
 					else
 					{
+						auto CALLOC(temp, m.dx);
+						for(int kx=0;kx<m.dx;++kx)
+						{
+							auto &z=m.data[kx];
+							temp[kx].r=z.r*z.r+z.i*z.i;
+							temp[kx].i=atan2(z.i, z.r);
+						}
 						for(int ky=1;ky<m.dy;++ky)
+						{
 							for(int kx=0;kx<m.dx;++kx)
-							{
-								m.data[kx].r+=m.data[m.dx*ky+kx].r;
-								m.data[kx].i+=m.data[m.dx*ky+kx].i;
-							}
+								c_min(m.data[kx], temp[kx].r, temp[kx].i, m.data[m.dx*ky+kx]);
+						}
+						CFREE(temp);
 						m.dy=1;
 					}
 					CREALLOC(m.data, m.data, m.dy*m.dx);
-					//m.data=(double*)realloc(m.data, m.dy*m.dx*sizeof(double));
+				}
+				break;
+			case T_MAX:
+				{
+					if(m.dy==1)
+					{
+						double mag=m.data[0].r*m.data[0].r+m.data[0].i*m.data[0].i,
+							phase=atan2(m.data[0].i, m.data[0].r);
+						for(int kx=1;kx<m.dx;++kx)
+							c_max(m.data[0], mag, phase, m.data[kx]);
+						m.dx=1;
+					}
+					else
+					{
+						auto CALLOC(temp, m.dx);
+						for(int kx=0;kx<m.dx;++kx)
+						{
+							auto &z=m.data[kx];
+							temp[kx].r=z.r*z.r+z.i*z.i;
+							temp[kx].i=atan2(z.i, z.r);
+						}
+						for(int ky=1;ky<m.dy;++ky)
+						{
+							for(int kx=0;kx<m.dx;++kx)
+								c_max(m.data[kx], temp[kx].r, temp[kx].i, m.data[m.dx*ky+kx]);
+						}
+						CFREE(temp);
+						m.dy=1;
+					}
+					CREALLOC(m.data, m.data, m.dy*m.dx);
 				}
 				break;
 			case T_TRACE:
