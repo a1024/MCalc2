@@ -15,12 +15,14 @@
 //along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #include	<stdarg.h>
-#include	<map>
 #include	<math.h>
+#include	<map>
+#include	<algorithm>
 //#include	<conio.h>
 #include	"mc2.h"
 const char	file[]=__FILE__;
 
+double		g_tolerance=1e-15;
 bool		print_fractions=false;
 void		Matrix::print()
 {
@@ -36,7 +38,8 @@ void		Matrix::print()
 		if(abs(data->i)>1e-10)//complex scalar
 		{
 			prind_func(data->r, 4, 0);//12
-			printf("+");
+			if(data->i>0)
+				printf("+");
 			prind_func(data->i, 0, 0);
 			printf("i\n");
 		}
@@ -80,7 +83,8 @@ void		Matrix::print()
 				if(abs(z.i)>1e-10)
 				{
 					prind_func(z.r, p[1], p[2]);
-					printf("+");
+					if(z.i>0)
+						printf("+");
 					prind_func(z.i, 0, 0);
 					printf("*i");
 				}
@@ -484,7 +488,7 @@ void		dft_init(int size, Comp *&weights, Comp *&temp, bool inverse)
 		}
 	}
 }
-void		dft_apply_1D(Comp *data, Comp *weights, Comp *temp, int size, int stride)
+void		dft_apply_1D(Comp *data, Comp const *weights, Comp *temp, int size, int stride)
 {
 	for(int k=0;k<size;++k)
 	{
@@ -536,11 +540,41 @@ void		idct_init(int size, Comp *&weights, Comp *&temp)
 	}
 }
 
+Comp		eval_poly(Comp const *coeff, int order, Comp &x)
+{
+	Comp result=coeff[0];
+	for(int k=1;k<order;++k)
+	{
+		c_mul(&result, &result, &x);
+		result.r+=coeff[k].r;
+		result.i+=coeff[k].i;
+	}
+	return result;
+}
+bool		polmul(Matrix &dst, Matrix const &a, Matrix const &b, int idx0)
+{
+	if(a.dy!=1||b.dy!=1)
+		return user_error2(idx0, idx, "Expected a row vector");
+	auto CALLOC(temp, a.dx+b.dx-1);
+	impl_polmul(temp, a.data, b.data, a.dx, b.dx, 0);
+	if(dst.data)
+		CFREE(dst.data);
+	dst.data=temp;
+	dst.dx=a.dx+b.dx-1;
+}
+
 inline bool	check_scalar(Matrix &m, int idx0)
 {
 	if(m.dx!=1||m.dy!=1)
 		return user_error2(idx0, idx, "Expected a scalar");
 	return true;
+}
+inline bool	check_real(Matrix &m, int idx0)
+{
+	if(!check_scalar(m, idx0))
+		return false;
+	if(abs(m.data->i)>1e-10)
+		return user_error2(idx0, idx, "Expected a real value");
 }
 inline bool	get_int(Matrix &m, int idx0, int &i)
 {
@@ -1034,8 +1068,106 @@ bool		r_unary(Matrix &m, bool space_sensitive)
 						printf("Fractions: OFF\n");
 				}
 				break;
-			case T_ROOTS://TODO
-				return my_error(idx0, idx);
+			case T_ROOTS:
+				{
+					if(minimum(m.dx, m.dy)!=1)
+						return user_error2(idx0, idx, "Expected a vector of polynomial coefficients");
+					int size=maximum(m.dx, m.dy);
+					int k=0;
+
+					//remove leading zero coefficients
+					for(;k<size;++k)
+					{
+						auto &z=m.data[k];
+						if(abs(z.r*z.r+z.i*z.i)>1e-10)
+							break;
+					}
+					--k;
+					if(k>0)
+					{
+						size-=k;
+						m.dx=size, m.dy=1;
+						CREALLOC(m.data, m.data, size-k);
+					}
+					if(size<2)
+						return user_error2(idx0, idx, "Degenerate equation");
+					//if(!check_real(m2, idx0))
+					//	return false;
+					int nroots=size-1;
+					auto CALLOC(der, nroots), CALLOC(roots, nroots), CALLOC(deltas, nroots);
+					for(k=1;k<size;++k)
+					{
+						der[k-1].r=(size-k)*m.data[k].r;
+						der[k-1].i=(size-k)*m.data[k].i;
+					}
+					double factor=2*_pi/nroots;
+					srand((unsigned)__rdtsc());
+					for(k=0;k<nroots;++k)
+					{
+						roots[k].r=(double)rand()/RAND_MAX;
+						roots[k].i=(double)rand()/RAND_MAX;
+					}
+					//for(k=0;k<nroots;++k)//initialize roots on unit circle?
+					//{
+					//	roots[k].r=cos(factor*k);
+					//	roots[k].i=sin(factor*k);
+					//}
+					for(k=0;k<1e6;++k)
+					{
+						for(int k2=0;k2<nroots;++k2)
+						{
+							Comp d=eval_poly(der, size-1, roots[k2]);
+							Comp p=eval_poly(m.data, size, roots[k2]);
+							Comp sum={};
+							for(int k3=0;k3<nroots;++k3)
+							{
+								if(k3==k2)
+									continue;
+								Comp term={roots[k2].r-roots[k3].r, roots[k2].i-roots[k3].i};
+								c_inv(&term, &term);
+								sum.r+=term.r;
+								sum.i+=term.i;
+							}
+							c_mul(&sum, &sum, &p);
+							d.r-=sum.r;
+							d.i-=sum.i;
+							c_div(&p, &p, &d);
+							deltas[k2]=p;
+						}
+						for(int k2=0;k2<nroots;++k2)
+						{
+							roots[k2].r-=deltas[k2].r;
+							roots[k2].i-=deltas[k2].i;
+						}
+						//printf("%d:\n", k);//
+						//print_matrix_debug(deltas, nroots, 1);//
+						double max_delta=0;
+						for(int k2=0;k2<nroots;++k2)
+						{
+							auto &dk=deltas[k2];
+							double d=abs(dk.r*dk.r+dk.i*dk.i);
+							if(max_delta<d)
+								max_delta=d;
+						}
+						if(max_delta<g_tolerance)
+							break;
+					}
+					if(k==1e6)
+						user_error2(idx0, idx, "Algorithm is unstable");
+					std::sort(roots, roots+nroots, [](Comp const &a, Comp const &b)
+					{
+						if(a.r==b.r)
+							return a.i<b.i;
+						return a.r<b.r;
+					});
+					//printf("%d:\n", k);//
+					//print_matrix_debug(deltas, nroots, 1);//
+					CFREE(der);
+					CFREE(m.data);
+					m.data=roots;
+					m.dx=1, m.dy=nroots;
+				}
+				break;
 			case T_SAMPLE://TODO
 				return my_error(idx0, idx);
 			case T_INVZ://TODO
@@ -1306,10 +1438,10 @@ bool		r_unary(Matrix &m, bool space_sensitive)
 			return r_postfix(m, space_sensitive);
 		case T_CMD:
 		case T_FRAC:
-		case T_CONV:
-		case T_EGVEC:
+		case T_POLPOW:
 		case T_LDIV:
 		case T_CROSS:
+		case T_EGVEC:
 			{
 				m.name=nullptr;
 				Matrix m2;
@@ -1353,15 +1485,30 @@ bool		r_unary(Matrix &m, bool space_sensitive)
 						m.dx=3;
 					}
 					break;
-				case T_CONV:
+				case T_POLPOW:
 					{
-						if(m.dy!=1||m2.dy!=1)//expected 2 row vectors
-							return user_error2(idx0, idx, "Expected two row vectors");
-						auto CALLOC(temp, m.dx+m2.dx-1);
-						impl_polmul(temp, m.data, m2.data, m.dx, m2.dx, 0);
-						CFREE(m.data);
-						m.data=temp;
-						m.dx+=m2.dx-1;
+						if(m.dy!=1)
+							return user_error2(idx0, idx, "Expected a row vector");
+						int p=0;
+						if(!get_int(m2, idx0, p))
+							return false;
+						if(p<0)
+							return user_error2(idx0, idx, "Expected a positive integer");
+						Matrix product;
+						product.name=nullptr;
+						product.dx=product.dy=1;
+						CALLOC(product.data, 1);
+						product.data->r=1, product.data->i=0;
+						for(;;)
+						{
+							if(p&1)
+								polmul(product, product, m, idx0);
+							p>>=1;
+							if(!p)
+								break;
+							polmul(m, m, m, idx0);
+						}
+						m=std::move(product);
 					}
 					break;
 				case T_EGVEC:
@@ -1437,6 +1584,36 @@ bool		r_unary(Matrix &m, bool space_sensitive)
 				}
 			}
 			return r_postfix(m, space_sensitive);
+		case T_CONV://variadic function
+			{
+				m.name=nullptr;
+				if(lex_get(false)!=T_LPR)
+					return user_error2(idx0, idx, "Expected an opening parenthesis \'(\' of function call");
+				if(!r_assign_expr(m, false))
+					return false;
+				if(m.dy!=1)
+					return user_error2(idx0, idx, "Expected a row vector");
+				for(t=lex_get(false);t==T_COMMA;)
+				{
+					Matrix m2;
+					if(!r_assign_expr(m2, false))
+						return false;
+
+					polmul(m, m, m2, idx0);
+					//if(m.dy!=1||m2.dy!=1)
+					//	return user_error2(idx0, idx, "Expected a row vector");
+					//auto CALLOC(temp, m.dx+m2.dx-1);
+					//impl_polmul(temp, m.data, m2.data, m.dx, m2.dx, 0);
+					//CFREE(m.data);
+					//m.data=temp;
+					//m.dx+=m2.dx-1;
+
+					t=lex_get(false);
+				}
+				if(t!=T_RPR)
+					return user_error2(idx0, idx, "Expected an closing parenthesis \')\' of function call");
+			}
+			break;
 #endif
 			//region - constants
 #if 1
@@ -1486,9 +1663,7 @@ bool		r_unary(Matrix &m, bool space_sensitive)
 			return r_postfix(m, space_sensitive);
 #endif
 		case T_POLY:
-			{
-			}
-			break;
+			return my_error(idx0, idx);
 		case T_MINUS:
 			m.name=nullptr;
 			if(!r_unary(m, space_sensitive))
@@ -2130,6 +2305,16 @@ int			solve(std::string &str, bool again)
 			printf("Fractions: ON\n");
 		else
 			printf("Fractions: OFF\n");
+		ret=SOLVE_OK_NO_ANS;
+		break;
+	case T_TOLERANCE:
+		if(lex_get(false)!=T_NUMBER)
+			printf("Expected a tolerance value\n");
+		else
+		{
+			g_tolerance=lex_number;
+			printf("algorithm tolerance = %g\n", g_tolerance);
+		}
 		ret=SOLVE_OK_NO_ANS;
 		break;
 	case T_GFSET://TODO

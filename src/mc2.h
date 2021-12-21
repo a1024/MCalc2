@@ -50,7 +50,7 @@ extern "C"
 	int		query_double(double x, int *point);
 	int		print_double(double x, int point_pos, int total);//point_pos==0: no leading spaces, total==0: no trailing spaces
 	int		print_double_frac(double x, int point_pos, int total);
-	void	print_matrix(Comp const *data, int w, int h);
+//	void	print_matrix(Comp const *data, int w, int h);
 	void	print_matrix_debug(Comp const *buf, int w, int h);
 
 	double	c_abs2(Comp *z);

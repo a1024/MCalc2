@@ -1,10 +1,11 @@
 MCALC2: A Matrix Calculator
+
 Usage:
   mcalc2 ["expression"/"filename"]
 
 Syntax:
   Use Matlab-style vectors & matrices.
-  Elements are separated by commas or spaces, for example:
+  Row elements are separated by commas or spaces, for example:
     [a2 a1 a0] or [a2, a1, a0] is a row vector
     [a11, a12;  a21, a22]      is a 2x2 matrix
   Use same square brackets to access matrix elements, for example:
@@ -35,6 +36,8 @@ Keywords:
   clear: Clears all variables from memory
   vars: Shows all variables & answer count
   open: Opens a text file
+  fractions: Toggle printing numbers as fractions
+  tolerance: Set algorithm stopping tolerance
 General functions:
   ans(n): The n-th answer
   cmd(w, h): Set console buffer size (in characters)
@@ -59,4 +62,11 @@ Square matrices:
   diag: make a diagonal matrix
   egval: Eigenvalues of a matrix
   egvec(M, L): Eigenvectors, given matrix M and eigenvalues L
+Polynomials:
+  conv: Multiply polynomials
+  polpow: Raise a polynomial power an integer
+  roots: Find the roots of a polynomial
+Matrices & polynomials:
+  dft/idft: Discrete Fourier Transform
+  dct/idct: Discrete Cosine Transforms II/III
 

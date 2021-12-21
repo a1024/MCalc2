@@ -4,7 +4,7 @@ TOKEN(0, T_IGNORED)
 //functions
 TOKEN("ans", T_ANS) TOKEN("cmd", T_CMD) TOKEN("printmode", T_PRINTMODE)//general
 TOKEN("frac", T_FRAC)//numbers
-TOKEN("conv", T_CONV) TOKEN("roots", T_ROOTS) TOKEN("poly", T_POLY)//polynomials
+TOKEN("conv", T_CONV) TOKEN("polpow", T_POLPOW) TOKEN("roots", T_ROOTS) TOKEN("poly", T_POLY)//polynomials
 TOKEN("ldiv", T_LDIV) TOKEN("sample", T_SAMPLE) TOKEN("invz", T_INVZ)//fractions
 TOKEN("cross", T_CROSS)//row vectors
 
@@ -55,7 +55,7 @@ TOKEN("[", T_LBRACKET) TOKEN("]", T_RBRACKET)	//matrix/vector
 //commands
 TOKEN("help", T_HELP)
 TOKEN("open", T_OPEN)
-TOKEN("clear", T_CLEAR) TOKEN("vars", T_VARS) TOKEN("fractions", T_FRACTIONS)
+TOKEN("clear", T_CLEAR) TOKEN("vars", T_VARS) TOKEN("fractions", T_FRACTIONS) TOKEN("tolerance", T_TOLERANCE)
 TOKEN("gfset", T_GFSET)
 TOKEN("exit", T_EXIT) TOKEN("quit", T_QUIT)
 
