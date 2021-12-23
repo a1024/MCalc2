@@ -538,7 +538,7 @@ void		dft_apply_1D(Comp *data, Comp const *weights, Comp *temp, int size, int st
 		for(int ks=0, kd=0;kd<size;ks+=stride, ++kd)
 			c_mul_add(temp+k, row+kd, data+ks);
 	}
-	for(int ks=0, kd=0;kd<size;++ks, kd+=stride)
+	for(int ks=0, kd=0;ks<size;++ks, kd+=stride)
 		data[kd]=temp[ks];
 }
 void		dft_finish(Comp *&weights, Comp *&temp)
