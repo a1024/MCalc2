@@ -24,6 +24,14 @@ static const char file[]=__FILE__;
 
 //	#define	DEBUG_NULLSPACE
 
+#ifdef __linux__
+#define		sprintf_s	snprintf
+#define		vsprintf_s	vsnprintf
+#define		scanf_s		scanf
+#define		__rdtsc		__builtin_ia32_rdtsc
+#define		_HUGE		HUGE_VAL
+char		_getch();
+#endif
 int			maximum(int a, int b){return a>b?a:b;}
 int			minimum(int a, int b){return a<b?a:b;}
 int			clamp(int lo, int x, int hi)
@@ -194,7 +202,7 @@ int			query_double(double x, int *point)
 int			print_double(double x, int point_pos, int total)//point_pos==0: no leading spaces, total==0: no trailing spaces
 {
 //	int nbefore=sprintf_s(g_buf, G_BUF_SIZE, "%lld", (long long)abs(x));
-	double a=abs(x);
+	double a=fabs(x);
 	long long i=(long long)a;
 	int nbefore=sprintf_s(g_buf, G_BUF_SIZE, "%lld", i);
 	int nafter=sprintf_s(g_buf, G_BUF_SIZE, "%g", a-i)-2;

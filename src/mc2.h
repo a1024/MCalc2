@@ -20,15 +20,26 @@
 #include	<string>
 #include	<map>
 #include	"mc2_memory.h"
+#ifdef __linux__
+#define		sprintf_s	snprintf
+#define		vsprintf_s	vsnprintf
+#define		scanf_s		scanf
+#define		__rdtsc		__builtin_ia32_rdtsc
+#define		_HUGE		HUGE_VAL
+extern "C" char _getch();
+#endif
 
-//mc2_system.c
-extern "C"
-{
-	int				set_console_buffer_size(short w, short h);
-	const wchar_t*	open_file_window();
-	int				file_is_readablea(const char *filename);
-	int				file_is_readablew(const wchar_t *filename);
-}
+//mc2_system
+#ifdef __linux__
+#define			set_console_buffer_size(...)
+const char*		open_file_window();
+int				file_is_readablea(const char *filename);
+#else
+int				set_console_buffer_size(short w, short h);
+const wchar_t*	open_file_window();
+int				file_is_readablea(const char *filename);
+int				file_is_readablew(const wchar_t *filename);
+#endif
 
 
 //mc2_math.c

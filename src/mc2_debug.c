@@ -17,7 +17,12 @@
 #include	<stdio.h>
 #include	<stdlib.h>
 #include	<string.h>
+#ifdef __linux__
+#include	"mc2_memory.h"
+char		_getch();
+#else
 #include	<conio.h>
+#endif
 static void	mem_print(const void *buf, int bytesize)
 {
 	int k;
@@ -185,13 +190,13 @@ static void	pointers_action_access(const void *p)
 		if((char*)p>=pointer->bytes&&(char*)p<pointer->bytes+pointer->bytesize)//found
 		{
 			found=1;
-			printf("\tp=0x%p, %d bytes status=%s\n", pointer->p, pointer->bytesize, pointer_status2str(pointer->status));
+			printf("\tp=0x%p, %d bytes status=%s\n", pointer->p, (int)pointer->bytesize, pointer_status2str(pointer->status));
 			if(pointer->status!=POINTER_ACTIVE)
 				_getch();
 		}
 	}
 	if(!found)
-		printf("\tnot found\n", p);
+		printf("\tnot found\n");
 	++access_count;
 }
 
@@ -304,7 +309,7 @@ int			d_aligned_free		(const char *file, int line, void *p)
 void		d_memset			(const char *file, int line, void *dst, int val, size_t bytesize)
 {
 	++syscall_count;
-	printf("%s(%d): #%d memset 0x%p := %d, %d before:\n\t", get_filename(file), line, syscall_count, dst, val, bytesize);
+	printf("%s(%d): #%d memset 0x%p := %d, %d before:\n\t", get_filename(file), line, syscall_count, dst, val, (int)bytesize);
 
 	pointers_action_access(dst);//
 
@@ -318,7 +323,7 @@ void		d_memset			(const char *file, int line, void *dst, int val, size_t bytesiz
 void		d_memcpy			(const char *file, int line, void *dst, const void *src, size_t bytesize)
 {
 	++syscall_count;
-	printf("%s(%d): #%d memcpy 0x%p := 0x%p, %d before:\n\t", get_filename(file), line, syscall_count, dst, src, bytesize);
+	printf("%s(%d): #%d memcpy 0x%p := 0x%p, %d before:\n\t", get_filename(file), line, syscall_count, dst, src, (int)bytesize);
 
 	pointers_action_access(src);//
 	pointers_action_access(dst);//
@@ -333,7 +338,7 @@ void		d_memcpy			(const char *file, int line, void *dst, const void *src, size_t
 void		d_memmove			(const char *file, int line, void *dst, const void *src, size_t bytesize)
 {
 	++syscall_count;
-	printf("%s(%d): #%d memmove 0x%p := 0x%p, %d before:\n\t", get_filename(file), line, syscall_count, dst, src, bytesize);
+	printf("%s(%d): #%d memmove 0x%p := 0x%p, %d before:\n\t", get_filename(file), line, syscall_count, dst, src, (int)bytesize);
 
 	pointers_action_access(src);//
 	pointers_action_access(dst);//

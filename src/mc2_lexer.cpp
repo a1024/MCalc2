@@ -108,7 +108,7 @@ void		lex_init(const char *str, int len)
 					_mm_setzero_si128(),
 					kt,
 					len,
-					endswithnd<<1|is_alphanumeric(keyword[0]),//only alphanumeric keywords should be followed by non-alphanumeric
+					short(endswithnd<<1|is_alphanumeric(keyword[0])),//only alphanumeric keywords should be followed by non-alphanumeric
 					keyword,
 				};
 				memcpy(&opt.option, keyword, opt.len);

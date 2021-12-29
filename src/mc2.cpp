@@ -15,9 +15,11 @@
 //along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #include	<stdio.h>
-#include	<conio.h>
 #include	<string>
 #include	<iostream>
+#ifndef __linux__
+#include	<conio.h>
+#endif
 #include	"mc2.h"
 const char	file[]=__FILE__;
 extern const int	g_buf_size=G_BUF_SIZE;
@@ -49,7 +51,7 @@ void		print_help()
 		"  function call, parentheses, square brackets\n"
 		"  \', ^, member access\n"
 		"  + - (unary)\n"
-		"  * o / \\ % .* ./\n"
+		"  * o / \\ %% .* ./\n"
 		"  + -\n"
 		"  :\n"
 		"  < <= > >=\n"
@@ -113,7 +115,7 @@ void		get_str_interactive(std::string &str, const char *cmdstr)
 	if(gfmode)
 		printf("gf");
 	if(cmdstr)
-		printf(cmdstr);
+		printf("%s", cmdstr);
 	printf("> ");
 	std::getline(std::cin, str);
 }
@@ -122,6 +124,14 @@ bool		get_str_from_file(std::string &str)
 	auto wbuf=open_file_window();
 	if(!wbuf)
 		return false;
+#ifdef __linux__
+	FILE *file=fopen(wbuf, "r");
+	if(!file)
+	{
+		printf("%s\n", strerror(errno));
+		return false;
+	}
+#else
 	FILE *file=nullptr;
 	int ret=_wfopen_s(&file, wbuf, L"r");
 	if(ret)
@@ -130,6 +140,7 @@ bool		get_str_from_file(std::string &str)
 		printf("%s\n", g_buf);
 		return false;
 	}
+#endif
 	fseek(file, 0, SEEK_END);
 	int bytesize=ftell(file);
 	fseek(file, 0, SEEK_SET);
@@ -165,6 +176,14 @@ int			main(int argc, const char **argv)
 		printf("> %s\n\n", argv[1]);
 		if(file_is_readablea(argv[1]))
 		{
+#ifdef __linux__
+			FILE *file=fopen(argv[1], "r");
+			if(!file)
+			{
+				printf("%s\n", strerror(errno));
+				return EXIT_FAILURE;
+			}
+#else
 			FILE *file=nullptr;
 			int ret=fopen_s(&file, argv[1], "r");
 			if(ret)
@@ -173,6 +192,7 @@ int			main(int argc, const char **argv)
 				printf("%s\n", g_buf);
 				return EXIT_FAILURE;
 			}
+#endif
 			fseek(file, 0, SEEK_END);
 			int bytesize=ftell(file);
 			fseek(file, 0, SEEK_SET);
@@ -221,7 +241,7 @@ int			main(int argc, const char **argv)
 			if(ans.name)
 				printf("%s =\n", ans.name);
 			else
-				printf("ans(%d) =\n", g_answers.size()-1);
+				printf("ans(%d) =\n", (int)g_answers.size()-1);
 			ans.print();
 		}
 		//if(quit_prompt)

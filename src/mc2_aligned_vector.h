@@ -1,4 +1,8 @@
 #include<stdlib.h>
+#ifdef __linux__
+#include<stddef.h>
+#include"mc2_memory.h"
+#endif
 template<typename T, int align>struct AlignedAllocator
 {
 	typedef AlignedAllocator<T, align> other;

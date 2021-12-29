@@ -22,6 +22,43 @@
 //	#define	DEBUG_MEMORY
 
 
+#ifdef __linux__
+#include<stdlib.h>
+#include<assert.h>
+//#define		_aligned_malloc(SIZE, ALIGN)	aligned_alloc(ALIGN, SIZE)	//how to realloc?
+//#define		_aligned_free(POINTER)			free(POINTER)
+#define			GETPTR(PTR)		((void**)(PTR))[-1]
+#define			GETSIZE(PTR)	((size_t*)(PTR))[-2]
+static void*	_aligned_malloc(size_t size, size_t align)
+{
+	size_t addr=0, aa=0;
+	assert(align>=sizeof(size_t));//
+	addr=(size_t)malloc(size+align+2*sizeof(size_t));
+	if(!addr)
+		return 0;
+	aa=addr+2*sizeof(size_t)+align;
+	aa-=aa%align;
+	GETPTR(aa)=(void*)addr;
+	GETSIZE(aa)=size;
+	return (void*)aa;
+}
+static void 	_aligned_free(void *p)
+{
+	free(GETPTR(p));
+}
+static void*	_aligned_realloc(void *oldp, size_t size, size_t align)//inherently slow
+{
+	int copysize=GETSIZE(oldp);
+	void *p=_aligned_malloc(size, align);
+	if(!p)
+		return 0;
+	if(copysize>size)
+		copysize=size;
+	memcpy(p, oldp, copysize);
+	_aligned_free(oldp);
+	return p;
+}
+#endif
 #ifdef _MSC_VER
 #define		scanf	scanf_s
 #endif

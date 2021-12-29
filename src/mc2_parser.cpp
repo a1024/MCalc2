@@ -18,6 +18,7 @@
 #include	<math.h>
 #include	<map>
 #include	<algorithm>
+#include	<tmmintrin.h>
 //#include	<conio.h>
 #include	"mc2.h"
 const char	file[]=__FILE__;
@@ -133,7 +134,7 @@ bool		user_error2(int start, int end, const char *format, ...)
 	va_start(args, format);
 	printed+=vsprintf_s(g_buf+printed, g_buf_size-printed, format, args);
 	va_end(args);
-	printed+=sprintf_s(g_buf+printed, g_buf_size-printed, ".", end-start, text+start);
+	printed+=sprintf_s(g_buf+printed, g_buf_size-printed, ".");
 	errors.push_back(std::string(g_buf, g_buf+printed));
 	return false;
 }
@@ -1594,6 +1595,7 @@ bool		r_unary(Matrix &m, bool space_sensitive)
 					return user_error2(idx0, idx, "Expected a closing parenthesis \'(\' of function call");
 				switch(t)
 				{
+#ifndef __linux__
 				case T_CMD:
 					{
 						int w=0, h=0;
@@ -1607,6 +1609,7 @@ bool		r_unary(Matrix &m, bool space_sensitive)
 						CREALLOC(m.data, m.data, 1);
 					}
 					break;
+#endif
 				case T_FRAC:
 					{
 						if(!check_scalar(m, idx0)||!check_scalar(m2, idx0))
@@ -2450,7 +2453,7 @@ int			solve(std::string &str, bool again)
 		else
 		{
 			g_tolerance=lex_number;
-			printf("algorithm tolerance = %g\n", g_tolerance);
+			printf("Algorithm tolerance = %g\n", g_tolerance);
 		}
 		ret=SOLVE_OK_NO_ANS;
 		break;
