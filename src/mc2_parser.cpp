@@ -608,8 +608,12 @@ bool		polmul(Matrix &dst, Matrix const &a, Matrix const &b, int idx0)
 
 void		impl_poladd(std::vector<Comp> &dst, std::vector<Comp> const &f)
 {
-	if(dst.size()<f.size())
-		dst.resize(f.size());
+	int s0=dst.size(), s1=f.size();
+	if(s0<s1)
+	{
+		dst.resize(s1);
+		CMEMZERO(dst.data(), s1-s0);
+	}
 	for(int k=0;k<(int)f.size();++k)
 	{
 		dst[k].r+=f[k].r;
@@ -618,8 +622,12 @@ void		impl_poladd(std::vector<Comp> &dst, std::vector<Comp> const &f)
 }
 void		impl_polsub(std::vector<Comp> &dst, std::vector<Comp> const &f)
 {
-	if(dst.size()<f.size())
-		dst.resize(f.size());
+	int s0=dst.size(), s1=f.size();
+	if(s0<s1)
+	{
+		dst.resize(s1);
+		CMEMZERO(dst.data(), s1-s0);
+	}
 	for(int k=0;k<(int)f.size();++k)
 	{
 		dst[k].r-=f[k].r;
@@ -648,7 +656,7 @@ void		impl_polmul(std::vector<Comp> &dst, std::vector<Comp> const &a, std::vecto
 }
 void		impl_polshrink(std::vector<Comp> &p)
 {
-	while(c_abs2(&p.back())<g_tolerance)
+	while(p.size()>0&&c_abs2(&p.back())<g_tolerance)
 		p.pop_back();
 }
 void		impl_det_poly(std::vector<Comp> **mp, std::vector<Comp> &p, unsigned short msize)
@@ -763,7 +771,7 @@ int			print_poly(std::vector<Comp> const &p, const char *vname)
 	int printed=0;
 	for(int k=p.size()-1;k>=0;--k)
 	{
-		bool plus=k<(int)p.size()-1;
+		bool plus=printed!=0;
 		int dp=0;
 		if(!k)
 			dp=print_term(p[k], plus, false, k);
@@ -788,6 +796,262 @@ int			print_poly(std::vector<Comp> const &p, const char *vname)
 	if(!printed)
 		printed+=printf("0");
 	return printed;
+}
+void		print_polmat(std::vector<Comp> const *mp, unsigned short dx, unsigned short dy)
+{
+	for(int ky=0;ky<dy;++ky)
+	{
+		for(int kx=0;kx<dx;++kx)
+		{
+			print_poly(mp[dx*ky+kx], "s");
+			printf("  ");
+		}
+		printf("\n");
+	}
+}
+int			str_int(std::string &str, long long n, int base=10)
+{
+	char buf[22]={0};
+	int ndigits=0;
+	auto n2=abs(n);
+	while(n2)
+	{
+		buf[20-ndigits]=char('0'+n2%base);
+		n2/=base;
+		++ndigits;
+	}
+	int neg=n<0;
+	if(neg)
+		str+='-';
+	if(ndigits)
+		str.append(buf+21-ndigits, ndigits);
+	else
+		str+='0', ++ndigits;
+	return neg+ndigits;
+}
+int			str_double_b10(std::string &str, double x, int decimals=7)
+{
+	const double tolerance=1e-10;
+	int printed=0;
+	if(x!=x)
+	{
+		str+="NaN";
+		return 3;
+	}
+	double x2=abs(x);
+	if(x2==_HUGE)
+	{
+		if(x<0)
+			str+='-', ++printed;
+		str+="Inf", printed+=3;
+		return printed;
+	}
+	if(!x)
+	{
+		str+='0';
+		return 1;
+	}
+	int total=decimals+1;
+	if(x<0)
+		str+='-', ++printed;
+	if(x2>0.0001&&x2<1000000000)
+	{
+		auto fx=floor(x2);
+		printed+=str_int(str, (int)fx);
+		x2-=fx;
+		//if(printed+1<point||x2)
+		//if(printed<decimals||x2)
+		if(x2)
+		{
+			x2*=_10pow(decimals-printed);
+			fx=floor(x2);
+			printed+=str_int(str, (int)fx);
+			while(str.back()=='0')
+				str.pop_back(), --printed;
+			if(str.back()=='.')
+				str.pop_back(), --printed;
+			//str+='.', ++printed;
+			//for(double gain=1;x2*gain>tolerance||printed<total;gain*=0.1)
+			//{
+			//	x2*=10;
+			//	int digit=(int)(x2-floor(x2));
+			//	str+='0'+digit;
+			//	++printed;
+			//}
+		}
+	}
+	else//extreme value: use scientific notation
+	{
+		int p=floor_log10(x2+tolerance);
+		x2*=_10pow(-p);
+		auto fx=floor(x2);
+		printed+=str_int(str, (int)fx);
+		x2-=fx;
+		x2*=_10pow(decimals-1);
+		fx=floor(x2);
+		printed+=str_int(str, (int)fx);
+		while(str.back()=='0')
+			str.pop_back(), --printed;
+		if(str.back()=='.')
+			str.pop_back(), --printed;
+		if(p)
+		{
+			str+='e', ++printed;
+			if(p>0)
+				str+='+', ++printed;
+			printed+=str_int(str, p);
+		}
+	}
+/*	bool start=true;
+	int p0=0, prev_p=0;
+	for(;;)
+	{
+		int p=floor_log10(x2+tolerance);
+		if(start)
+			p0=p;
+		else if(p!=prev_p-1)
+			p=prev_p-1;
+		int msd=int(x2*_10pow(-p));
+		str+='0'+msd;
+		x2-=msd*_10pow(p);
+		++printed;
+		//if(abs(x2)<tolerance||printed>=19)
+		if(!x2||printed>=19)
+			break;
+		prev_p=p;
+		if(start)
+		{
+			str+='.';
+			start=false;
+		}
+	}
+	str+='e', ++printed;
+	if(p0>=0)
+		str+='+', ++printed;
+	printed+=str_int(str, p0);//*/
+	return printed;
+}
+int			str_coeff(std::string &str, Comp const &z, bool plus, bool parens, short power)
+{
+	bool pr=abs(z.r)>g_tolerance, pi=abs(z.i)>g_tolerance;
+	int printed=0;
+	if(pr&&pi)
+	{
+		if(plus&&(parens||z.r>0))
+			str+='+', ++printed;
+		if(parens)
+			str+='(', ++printed;
+		printed+=str_double_b10(str, z.r);
+		if(z.i>0)
+			str+='+', ++printed;
+		printed+=str_double_b10(str, z.i);
+		if(parens)
+			str+=')', ++printed;
+	}
+	else if(pi)
+	{
+		if(power&&z.i==1)
+			return -1;
+		if(power&&z.i==-1)
+			str+='+', ++printed;
+		else
+		{
+			if(plus&&z.i>0)
+				str+='+', ++printed;
+			printed+=str_double_b10(str, z.i);
+		}
+	}
+	else if(pr)
+	{
+		if(power&&z.r==1)
+			return -1;
+		if(power&&z.r==-1)
+			str+='+', ++printed;
+		else
+		{
+			if(plus&&z.r>0)
+				str+='+', ++printed;
+			printed+=str_double_b10(str, z.r);
+		}
+	}
+	return printed;
+}
+int			str_poly(std::string &str, std::vector<Comp> const &p, const char *vname, int vlen)
+{
+	int printed=0;
+	for(int k=p.size()-1;k>=0;--k)
+	{
+		bool plus=printed!=0;
+		int dp=0;
+		if(!k)
+			dp=str_coeff(str, p[k], plus, false, k);
+		else if(k==1)
+		{
+			dp=str_coeff(str, p[k], plus, true, k);
+			if(dp==-1)
+				str+=vname, dp=vlen;
+			else if(dp)
+				str+=vname, dp+=vlen;
+		}
+		else
+		{
+			dp=str_coeff(str, p[k], plus, true, k);
+			if(dp)
+			{
+				if(dp==-1)
+					str+=vname, dp=vlen;
+				else
+					str+=vname, dp+=vlen;
+				dp+=str_int(str, k);
+			}
+			//if(dp==-1)
+			//	dp=printf("%s%d", vname, k);
+			//else if(dp)
+			//	dp+=printf("%s%d", vname, k);
+		}
+		printed+=dp;
+	}
+	if(!printed)
+		str+='0', ++printed;
+	//	printed+=printf("0");
+	return printed;
+}
+void		print_polmat(std::vector<Comp> const *mp, unsigned short dx, unsigned short dy, const char *vname)
+{
+	auto widths=new int[dx];
+	memset(widths, 0, dx*sizeof(int));
+	std::vector<int> indices(dy*dx+1);
+	std::string polys;
+	//std::vector<std::string> v(dy*dx);
+	int vlen=strlen(vname);
+	for(int ky=0;ky<dy;++ky)
+	{
+		for(int kx=0;kx<dx;++kx)
+		{
+			indices[dx*ky+kx]=polys.size();
+			int printed=str_poly(polys, mp[dx*ky+kx], vname, vlen);
+			if(widths[kx]<printed)
+				widths[kx]=printed;
+			//str_poly(v[dx*ky+kx], mp[dx*ky+kx], vname, vlen);
+		}
+	}
+	indices[dx*dy]=polys.size();
+	for(int ky=0;ky<dy;++ky)
+	{
+		for(int kx=0;kx<dx;++kx)
+		{
+			int idx=dx*ky+kx, printed=indices[idx+1]-indices[idx];
+			printf("%.*s", printed, polys.c_str()+indices[idx]);
+			//print_poly(mp[dx*ky+kx], "s");
+			int remaining=widths[kx]-printed;
+			if(remaining>0)
+				printf("%*s", remaining, "");
+			if(kx<dx-1)
+				printf("  ");
+		}
+		printf("\n");
+	}
+	delete[] widths;
 }
 
 inline bool	check_scalar(Matrix &m, int idx0)
@@ -1942,29 +2206,87 @@ bool		r_unary(Matrix &m, bool space_sensitive)
 				if(C.dy!=D.dy)
 					return user_error2(idx0, idx, "C.dy != D.dy");
 
-				if(D.dx!=1||D.dy!=1)
-					return user_error2(idx0, idx, "Only SISO systems are supported");
-
 				//polynomials: index = power (little-endian)
 				std::vector<Comp> den;
 				auto adj=new std::vector<Comp>[A.dx*A.dy];
 				impl_inv_sI_A(A, adj, den);
 				printf("SS2TF:\n(sI-A)^-1 = 1 / (");
-				print_poly(den, "s");
+				int denchars=print_poly(den, "s");
 				printf(") *\n[\n");
-				for(int ky=0;ky<A.dy;++ky)
+				print_polmat(adj, A.dx, A.dy, "s");
+				//for(int ky=0;ky<A.dy;++ky)
+				//{
+				//	for(int kx=0;kx<A.dx;++kx)
+				//	{
+				//		print_poly(adj[A.dx*ky+kx], "s");
+				//		printf("  ");
+				//	}
+				//	printf("\n");
+				//}
+				printf("]\n");
+				std::vector<Comp> unary(1), t2;
+				auto temp=new std::vector<Comp>[A.dy*B.dx];
+				for(int ky=0;ky<A.dy;++ky)//here A is square
 				{
-					for(int kx=0;kx<A.dx;++kx)
+					for(int kx=0;kx<B.dx;++kx)
 					{
-						print_poly(adj[A.dx*ky+kx], "s");
-						printf("  ");
+						for(int kj=0;kj<A.dx;++kj)//A.dx==B.dy
+						{
+							//temp[B.dx*ky+kx] += adj[A.dx*ky+kj] * B.get(kx, kj)
+							t2.clear();
+							unary[0]=B.get(kx, kj);
+							impl_polmul(t2, adj[A.dx*ky+kj], unary);
+							impl_polshrink(t2);
+							impl_poladd(temp[B.dx*ky+kx], t2);
+						}
 					}
+				}
+				auto TF=new std::vector<Comp>[D.dx*D.dy];
+				for(int ky=0;ky<C.dy;++ky)
+				{
+					for(int kx=0;kx<B.dx;++kx)
+					{
+						for(int kj=0;kj<C.dx;++kj)
+						{
+							//TF[B.dx*ky+kx] += C.get(kj, ky) * temp[B.dx*kj+kx]
+							t2.clear();
+							unary[0]=C.get(kj, ky);
+							impl_polmul(t2, unary, temp[B.dx*kj+kx]);
+							impl_polshrink(t2);
+							impl_poladd(TF[B.dx*ky+kx], t2);
+						}
+					}
+				}
+				for(int ky=0;ky<D.dy;++ky)
+				{
+					for(int kx=0;kx<D.dx;++kx)
+					{
+						unary[0]=D.get(kx, ky);
+						impl_poladd(TF[D.dx*ky+kx], unary);
+						impl_polshrink(TF[D.dx*ky+kx]);
+					}
+				}
+				delete[] temp;
+				int numchars=0;
+				if(D.dx==1&&D.dy==1)
+				{
+					printf("TF =\n");
+					numchars=print_poly(TF[0], "s");
 					printf("\n");
 				}
-				printf("]\n");
-				delete[] adj;
-				//auto temp=new Fraction[A.dx*A.dy];
-				//delete[] temp;
+				else
+				{
+					printf("TF = [\n");
+					print_polmat(TF, D.dx, D.dy, "s");
+					printf("]\n");
+				}
+				int linechars=maximum(numchars, denchars);
+				for(int k=0;k<linechars;++k)
+					printf("-");
+				printf("\n");
+				print_poly(den, "s");
+				printf("\n");
+				delete[] adj, TF;
 			}
 			break;
 		case T_CONV://variadic function
