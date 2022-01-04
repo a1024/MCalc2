@@ -171,26 +171,40 @@ enum		MatrixFlags
 	M_POLYNOMIAL_MASK	=0x0000FFFF,
 	M_SCALAR			=0x00010001,
 };
-struct		Matrix//8+4 bytes
+//#define	M_UNSPECIFIED_RANGE		0x0000000000000001
+//#define	M_POLYNOMIAL_MASK		0xFFFF000000000000
+//#define	M_SCALAR				0x0000000100010001
+struct		Matrix//2*4+4+4=16 bytes
 {
-	//TokenType type;
 	union
 	{
-		//dx & dy == 0: unspecified range
-		//dy==0: polynomial
-		//otherwise: matrix
 		unsigned flags;
 		struct{unsigned short dx, dy;};
 	};
+	unsigned short dz, type;
+	//unsigned short
+	//	type,		//0: matrix, 1: fraction, 2: matrix of fractions
+	//	dx, dy,
+	//	dz;			//unused
+
+	//TokenType type;
+	//union
+	//{
+	//	//dx==1 & dy==0: unspecified range
+	//	//dx>1, dy==0: polynomial		TODO
+	//	//otherwise: matrix
+	//	unsigned long long flags;
+	//	struct{unsigned short type, dx, dy, dz;};
+	//};
 	union
 	{
 		Comp *data;//complex numbers are interleaved
 		Matrix *poly;
 	};
 	char *name;//freed by StringLibrary
-	Matrix():dx(0), dy(0), data(nullptr), name(nullptr){}
-	Matrix(Matrix const &other):dx(other.dx), dy(other.dy), data(other.data), name(other.name){}
-	Matrix(Matrix &&other):dx(other.dx), dy(other.dy), data(other.data), name(other.name)
+	Matrix():type(0), dx(0), dy(0), dz(0), data(nullptr), name(nullptr){}
+	Matrix(Matrix const &other):type(other.type), dx(other.dx), dy(other.dy), dz(other.dz), data(other.data), name(other.name){}
+	Matrix(Matrix &&other):type(other.type), dx(other.dx), dy(other.dy), dz(other.dz), data(other.data), name(other.name)
 	{
 #ifdef DEBUG_MEMORY
 		const char file[]=__FILE__;
@@ -251,7 +265,7 @@ struct		Matrix//8+4 bytes
 		}
 		return *this;
 	}
-	void print();
+	void print()const;
 	void move2temp(Matrix &m)//to be used on temp matrices (eg: 2*x, x looses its name)
 	{
 #ifdef DEBUG_MEMORY
@@ -281,15 +295,19 @@ struct		Matrix//8+4 bytes
 		for(int k=0;k<size;++k)
 			data[k].r=start+k, data[k].i=0;
 	}
-	//void reset()
-	//{
-	//	type=T_IGNORED;
-	//	dx=0, dy=0;
-	//	data=nullptr;//data=nullptr? memory leak
-	//	name=nullptr;
-	//}
-	//void setmemzero(){MEMZERO(Matrix, this, 1);}//only use at move operation
+	int size()const
+	{
+		return dx*dy;//TODO: check for polynomial (not implemented yet)
+	}
+	void resize()
+	{
+		CREALLOC(data, data, size());
+	}
 };
+//struct		Fraction
+//{
+//	std::vector<Comp> num, den;
+//};
 #define		GET(DATA, DX, KX, KY)	DATA[(DX)*(KY)+(KX)]
 void		print_help();
 bool		get_str_from_file(std::string &str);

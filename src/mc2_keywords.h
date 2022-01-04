@@ -14,7 +14,7 @@ TOKEN("sum", T_SUM) TOKEN("mean", T_MEAN) TOKEN("min", T_MIN) TOKEN("max", T_MAX
 TOKEN("ref", T_REF) TOKEN("rref", T_RREF) TOKEN("rref2", T_RREF2)
 TOKEN("det", T_DET) TOKEN("inv", T_INV) TOKEN("lu", T_LU)
 TOKEN("egval", T_EGVAL) TOKEN("egvec", T_EGVEC) TOKEN("nullspace", T_NULLSPACE) TOKEN("diag", T_DIAG)
-//TOKEN("diag2", T_DIAG2) TOKEN("diag3", T_DIAG3)
+TOKEN("ss2tf", T_SS2TF)
 
 //DSP
 TOKEN("dft", T_DFT) TOKEN("idft", T_IDFT)

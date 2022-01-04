@@ -121,7 +121,7 @@ static void	memfill(void *dst, const void *src, size_t dstbytes, size_t srcbytes
 #define		ALLOC(TYPE, NEWP, COUNT)					NEWP=(TYPE*)malloc((COUNT)*sizeof(TYPE))
 #define		REALLOC(TYPE, NEWP, OLDP, COUNT)			NEWP=(TYPE*)realloc(OLDP, (COUNT)*sizeof(TYPE))
 #define		FREE(OLDP)									free(OLDP)
-#define		MEMFILL(TYPE, DST, SRC, DSTCOUNT, SRCCOUNT)	memfill(DST, SRD, (DSTCOUNT)*sizeof(TYPE), (SRCCOUNT)*sizeof(TYPE))
+#define		MEMFILL(TYPE, DST, SRC, DSTCOUNT, SRCCOUNT)	memfill(DST, SRC, (DSTCOUNT)*sizeof(TYPE), (SRCCOUNT)*sizeof(TYPE))
 #define		MEMZERO(TYPE, DST, COUNT)					memset(DST, 0, (COUNT)*sizeof(TYPE))
 #define		MEMCPY(TYPE, DST, SRC, COUNT)				memcpy(DST, SRC, (COUNT)*sizeof(TYPE))
 #define		MEMMOVE(TYPE, DST, SRC, COUNT)				memmove(DST, SRC, (COUNT)*sizeof(TYPE))

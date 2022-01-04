@@ -25,7 +25,7 @@ const char	file[]=__FILE__;
 
 double		g_tolerance=1e-15;
 bool		print_fractions=false;
-void		Matrix::print()
+void		Matrix::print()const
 {
 	if(!data)
 	{
@@ -33,22 +33,22 @@ void		Matrix::print()
 		//printf("Error: matrix.data == nullptr\n");
 		return;
 	}
-	auto prind_func=print_fractions?print_double_frac:print_double;
+	auto print_func=print_fractions?print_double_frac:print_double;
 	if(flags==M_SCALAR)//no brackets
 	{
 		printf(" ");
 		if(abs(data->i)>1e-10)//complex scalar
 		{
-			prind_func(data->r, 0, 0);//4, 12
+			print_func(data->r, 0, 0);//4, 12
 			if(data->i>0)
 				printf("+");
-			prind_func(data->i, 0, 0);
+			print_func(data->i, 0, 0);
 			printf("i\n");
 		}
 		//	printf("%4g+%4gi\n", data->r, data->i);
 		else if(abs(data->r)>1e-10)
 		{
-			prind_func(data->r, 0, 0);
+			print_func(data->r, 0, 0);
 			printf("\n");
 		}
 		//	printf("%4g\n", data->r);
@@ -84,15 +84,15 @@ void		Matrix::print()
 				printf(" ");
 				if(abs(z.i)>1e-10)
 				{
-					prind_func(z.r, p[1], p[2]);
+					print_func(z.r, p[1], p[2]);
 					if(z.i>0)
 						printf("+");
-					prind_func(z.i, 0, 0);
+					print_func(z.i, 0, 0);
 					printf("*i");
 				}
 				//	printf("%4g+%4gi", z.r, z.i);
 				else if(abs(z.r)>1e-10)
-					prind_func(z.r, p[1], p[2]);
+					print_func(z.r, p[1], p[2]);
 				//	printf("%4g", z.r);
 				else
 					printf("%*s0", p[2]-1, "");
@@ -606,6 +606,190 @@ bool		polmul(Matrix &dst, Matrix const &a, Matrix const &b, int idx0)
 	return true;
 }
 
+void		impl_poladd(std::vector<Comp> &dst, std::vector<Comp> const &f)
+{
+	if(dst.size()<f.size())
+		dst.resize(f.size());
+	for(int k=0;k<(int)f.size();++k)
+	{
+		dst[k].r+=f[k].r;
+		dst[k].i+=f[k].i;
+	}
+}
+void		impl_polsub(std::vector<Comp> &dst, std::vector<Comp> const &f)
+{
+	if(dst.size()<f.size())
+		dst.resize(f.size());
+	for(int k=0;k<(int)f.size();++k)
+	{
+		dst[k].r-=f[k].r;
+		dst[k].i-=f[k].i;
+	}
+}
+void		impl_polneg(std::vector<Comp> &f)
+{
+	for(int k=0;k<(int)f.size();++k)
+	{
+		auto &val=f[k];
+		val.r=-val.r;
+		val.i=-val.i;
+	}
+}
+void		impl_polmul(std::vector<Comp> &dst, std::vector<Comp> const &a, std::vector<Comp> const &b)
+{
+	dst.resize(a.size()+b.size()-1);
+	CMEMZERO(dst.data(), dst.size());
+	for(int ka=0;ka<(int)a.size();++ka)
+	{
+		auto &coeff=a[ka];
+		for(int kb=0;kb<(int)b.size();++kb)
+			c_mul_add(&dst[ka+kb], &coeff, &b[kb]);
+	}
+}
+void		impl_polshrink(std::vector<Comp> &p)
+{
+	while(c_abs2(&p.back())<g_tolerance)
+		p.pop_back();
+}
+void		impl_det_poly(std::vector<Comp> **mp, std::vector<Comp> &p, unsigned short msize)
+{
+	p.clear();
+	std::vector<Comp> p2;
+	if(msize==2)
+	{
+		impl_polmul(p, *mp[0], *mp[3]);
+		impl_polmul(p2, *mp[1], *mp[2]);
+		impl_polsub(p, p2);
+		return;
+	}
+	int size=msize-1;
+	size*=size;
+	auto temp=new std::vector<Comp>*[size];
+	for(int kd=0;kd<msize;++kd)
+	{
+		for(int ky=0;ky<msize;++ky)
+		{
+			if(ky==kd)
+				continue;
+			memcpy(temp+(msize-1)*(ky-(ky>kd)), mp+msize*ky+1, (msize-1)*sizeof(*temp));
+		}
+		std::vector<Comp> p3;
+		impl_det_poly(temp, p2, msize-1);
+		impl_polmul(p3, p2, *mp[msize*kd]);
+		if(kd&1)
+			impl_polsub(p, p3);
+		else
+			impl_poladd(p, p3);
+	}
+	delete[] temp;
+}
+void		impl_inv_sI_A(Matrix const &A, std::vector<Comp> *adj, std::vector<Comp> &den)//inverts (sI-A)
+{
+	int size=A.dx*A.dy;
+	auto mp=new std::vector<Comp>[size];//sI-A
+	for(int k=0;k<size;++k)
+	{
+		mp[k].push_back(A.data[k]);
+		auto &val=mp[k].back();
+		val.r=-val.r;
+		val.i=-val.i;
+	}
+	Comp one={1, 0};
+	for(int k=0;k<A.dx;++k)
+		mp[(A.dx+1)*k].push_back(one);
+
+	auto pmp=new std::vector<Comp>*[size];//matrix of pointers to original polynomials
+	for(int k=0;k<size;++k)
+		pmp[k]=mp+k;
+
+	impl_det_poly(pmp, den, A.dx);//calculate determinant
+	impl_polshrink(den);
+
+	for(int ky=0;ky<A.dy;++ky)//calculate adjoint matrix
+	{
+		for(int kx=0;kx<A.dx;++kx)
+		{
+			for(int ky2=0;ky2<A.dy;++ky2)//fill pointers to minor determinant
+			{
+				if(ky2==ky)
+					continue;
+				for(int kx2=0;kx2<A.dx;++kx2)
+				{
+					if(kx2==kx)
+						continue;
+					pmp[(A.dx-1)*(ky2-(ky2>ky))+kx2-(kx2>kx)]=mp+A.dx*ky2+kx2;
+				}
+			}
+			impl_det_poly(pmp, adj[A.dx*kx+ky], A.dx-1);
+			impl_polshrink(adj[A.dx*kx+ky]);
+			if((kx^ky)&1)
+				impl_polneg(adj[A.dx*kx+ky]);
+		}
+	}
+
+	delete[] pmp, mp;
+}
+int			print_term(Comp const &z, bool plus, bool parens, int power)
+{
+	bool pr=abs(z.r)>g_tolerance, pi=abs(z.i)>g_tolerance;
+	if(pr&&pi)
+	{
+		if(parens)
+			return printf("%s(%g+%gi)", plus?"+":"", z.r, z.i);
+		return printf("%s%g+%gi", plus&&z.r>0?"+":"", z.r, z.i);
+	}
+	if(pi)
+	{
+		if(power&&z.i==1)
+			return -1;
+		if(power&&z.i==-1)
+			return printf("-");
+		return printf("%s%gi", plus&&z.i>0?"+":"", z.i);
+	}
+	if(pr)
+	{
+		if(power&&z.r==1)
+			return -1;
+		if(power&&z.r==-1)
+			return printf("-");
+		return printf("%s%g", plus&&z.r>0?"+":"", z.r);
+	}
+	//else
+	//	printf("%s0", plus?"+":"");
+	return 0;
+}
+int			print_poly(std::vector<Comp> const &p, const char *vname)
+{
+	int printed=0;
+	for(int k=p.size()-1;k>=0;--k)
+	{
+		bool plus=k<(int)p.size()-1;
+		int dp=0;
+		if(!k)
+			dp=print_term(p[k], plus, false, k);
+		else if(k==1)
+		{
+			dp=print_term(p[k], plus, true, k);
+			if(dp==-1)
+				dp=printf("%s", vname);
+			else if(dp)
+				dp+=printf("%s", vname);
+		}
+		else
+		{
+			dp=print_term(p[k], plus, true, k);
+			if(dp==-1)
+				dp=printf("%s%d", vname, k);
+			else if(dp)
+				dp+=printf("%s%d", vname, k);
+		}
+		printed+=dp;
+	}
+	if(!printed)
+		printed+=printf("0");
+	return printed;
+}
+
 inline bool	check_scalar(Matrix &m, int idx0)
 {
 	if(m.dx!=1||m.dy!=1)
@@ -1055,6 +1239,7 @@ bool		r_unary(Matrix &m, bool space_sensitive)
 		case T_DET:case T_INV:
 		case T_LU:
 		case T_EGVAL:case T_NULLSPACE:case T_DIAG:
+	//	case T_SS2TF:
 		case T_FLOOR:case T_CEIL:case T_ROUND:
 		case T_SQRT:case T_CBRT:case T_EXP:case T_LN:case T_LOG:
 	//	case T_GAMMA:case T_LNGAMMA:
@@ -1461,24 +1646,24 @@ bool		r_unary(Matrix &m, bool space_sensitive)
 					m.dx=m.dy=dim;
 				}
 				break;
-			//	return my_error(idx0, idx);
-		/*	case T_DIAG2:
-				{
-					if(m.dx!=2||m.dy!=2)
-						return user_error2(idx0, idx, "Expected a 2x2 matrix, got %dx%d", m.dy, m.dx);
-					int size=4;
-					auto CALLOC(temp, size*3);
-					int success=impl_diag22(m.data, temp+(size<<1), temp, temp+size);
-					CFREE(m.data);
-					m.data=temp;
-					m.dy*=3;
-					if(!success)
-						printf("Matrix is not diagonalizable.\n");
-					//	return user_error2(idx0, idx, "Matrix is not diagonalizable");
-				}
-				break;
-			case T_DIAG3:
-				break;//*/
+			//case T_SS2TF:
+			//	{
+			//		if(m.dx!=4||m.dy!=4)
+			//			return user_error2(idx0, idx, "Expected a 4x4 matrix [A B;C D]");
+			//		Matrix A, B, C, D;
+			//		A.dx=A.dy=3, A.resize();
+			//		B.dx=1, B.dy=3, B.resize();
+			//		C.dx=3, C.dy=1, C.resize();
+			//		D.dx=D.dy=1, D.resize();
+			//		for(int k=0;k<3;++k)
+			//			CMEMCPY(A.data+3*k, m.data+4*k, 3);
+			//		B.data[0]=A.data[ 3];
+			//		B.data[1]=A.data[ 7];
+			//		B.data[2]=A.data[11];
+			//		CMEMCPY(C.data, A.data+12, 3);
+			//		D.data[0]=A.data[15];
+			//	}
+			//	break;
 #define		EW_FUNC(FUNC)	for(int k=0, size=m.dx*m.dy;k<size;++k)FUNC(m.data[k]);
 			case T_FLOOR:	EW_FUNC(c_floor)break;
 			case T_CEIL:	EW_FUNC(c_ceil)break;
@@ -1724,6 +1909,64 @@ bool		r_unary(Matrix &m, bool space_sensitive)
 				}
 			}
 			return r_postfix(m, space_sensitive);
+		case T_SS2TF:
+			{
+				Matrix A, B, C, D;
+				if(lex_get(false)!=T_LPR)
+					return user_error2(idx0, idx, "Expected an opening parenthesis \'(\' of function call");
+				if(!r_assign_expr(A, false))
+					return false;
+				if(lex_get(false)!=T_COMMA)
+					return user_error2(idx0, idx, "Expected a comma \',\' of binary function call");
+				if(!r_assign_expr(B, false))
+					return false;
+				if(lex_get(false)!=T_COMMA)
+					return user_error2(idx0, idx, "Expected a comma \',\' of binary function call");
+				if(!r_assign_expr(C, false))
+					return false;
+				if(lex_get(false)!=T_COMMA)
+					return user_error2(idx0, idx, "Expected a comma \',\' of binary function call");
+				if(!r_assign_expr(D, false))
+					return false;
+				if(lex_get(false)!=T_RPR)
+					return user_error2(idx0, idx, "Expected a closing parenthesis \'(\' of function call");
+				
+				if(A.dx!=A.dy)
+					return user_error2(idx0, idx, "A.dx != A.dy");
+				if(A.dy!=B.dy)
+					return user_error2(idx0, idx, "A.dy != B.dy");
+				if(A.dx!=C.dx)
+					return user_error2(idx0, idx, "A.dx != C.dx");
+				if(B.dx!=D.dx)
+					return user_error2(idx0, idx, "B.dx != D.dx");
+				if(C.dy!=D.dy)
+					return user_error2(idx0, idx, "C.dy != D.dy");
+
+				if(D.dx!=1||D.dy!=1)
+					return user_error2(idx0, idx, "Only SISO systems are supported");
+
+				//polynomials: index = power (little-endian)
+				std::vector<Comp> den;
+				auto adj=new std::vector<Comp>[A.dx*A.dy];
+				impl_inv_sI_A(A, adj, den);
+				printf("SS2TF:\n(sI-A)^-1 = 1 / (");
+				print_poly(den, "s");
+				printf(") *\n[\n");
+				for(int ky=0;ky<A.dy;++ky)
+				{
+					for(int kx=0;kx<A.dx;++kx)
+					{
+						print_poly(adj[A.dx*ky+kx], "s");
+						printf("  ");
+					}
+					printf("\n");
+				}
+				printf("]\n");
+				delete[] adj;
+				//auto temp=new Fraction[A.dx*A.dy];
+				//delete[] temp;
+			}
+			break;
 		case T_CONV://variadic function
 			{
 				m.name=nullptr;
@@ -1858,7 +2101,7 @@ bool		r_unary(Matrix &m, bool space_sensitive)
 
 							//join matrices vertically
 							if(m.dx!=m2.dx)
-								return user_error2(idx0, idx, "Matices have different widths: w1=%d != w2=%d", m.dx, m2.dx);
+								return user_error2(idx0, idx, "Matrices have different widths: w1=%d != w2=%d", m.dx, m2.dx);
 							int newdy=m.dy+m2.dy;
 							CREALLOC(m.data, m.data, m.dx*newdy);
 							//m.data=(double*)realloc(m.data, m.dx*newdy*sizeof(double));
