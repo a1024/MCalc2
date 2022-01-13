@@ -129,7 +129,7 @@ int			floor_log10(double x)
 	if(x>=1)
 	{
 		logn=0;
-		sh=(x>=pmask[17])<<8;	logn+=sh, x*=nmask[16+(sh!=0)];
+		sh=(x>=pmask[17])<<8;	logn+=sh, x*=nmask[16+(sh!=0)];//x>=1
 		sh=(x>=pmask[15])<<7;	logn+=sh, x*=nmask[14+(sh!=0)];
 		sh=(x>=pmask[13])<<6;	logn+=sh, x*=nmask[12+(sh!=0)];
 		sh=(x>=pmask[11])<<5;	logn+=sh, x*=nmask[10+(sh!=0)];
@@ -141,7 +141,7 @@ int			floor_log10(double x)
 		return logn;
 	}
 	logn=-1;
-	sh=(x<nmask[17])<<8;	logn-=sh;	x*=pmask[16+(sh!=0)];
+	sh=(x<nmask[17])<<8;	logn-=sh;	x*=pmask[16+(sh!=0)];//x<1
 	sh=(x<nmask[15])<<7;	logn-=sh;	x*=pmask[14+(sh!=0)];
 	sh=(x<nmask[13])<<6;	logn-=sh;	x*=pmask[12+(sh!=0)];
 	sh=(x<nmask[11])<<5;	logn-=sh;	x*=pmask[10+(sh!=0)];
@@ -205,7 +205,10 @@ int			print_double(double x, int point_pos, int total)//point_pos==0: no leading
 	double a=fabs(x);
 	long long i=(long long)a;
 	int nbefore=sprintf_s(g_buf, G_BUF_SIZE, "%lld", i);
-	int nafter=sprintf_s(g_buf, G_BUF_SIZE, "%g", a-i)-2;
+	double tail=a-i;
+	int nafter=0;
+	if(tail>1e-10)
+		nafter=sprintf_s(g_buf, G_BUF_SIZE, "%g", tail)-2;
 	int neg=x<0;
 	int nspaces=point_pos-nbefore-neg;
 	if(nspaces<0)

@@ -130,50 +130,82 @@ void		lex_init(const char *str, int len)
 }
 
 //number reader
-long long		acme_read_integer(const char *text, int size, int base, int start, int *ret_end)
+long long		acme_read_integer(const char *text, int size, int base, int start, int *ret_end, int *ret_logb)
 {
-	int k;
-	byte temp;
+	int k, logb=0;
+	byte temp, c;
 	long long ival=0;
-	int hex=-(base==16);
+	int digit_base=base;
+	if(digit_base>10)
+		digit_base=10;
+	//int hex=-(base==16);
 
 	for(k=start;k<size;++k)
 	{
 		temp=text[k];
-		byte c=temp-'0';
-		if(c<10)
-		{
-			ival*=base;
-			ival+=c;
+		if(temp=='\'')
 			continue;
-		}
-		else if(hex&&(c=(temp&0xDF)-'A', c<6))
+		c=temp-'0';
+		if(c>=digit_base)
 		{
-			ival*=base;
-			ival+=10+c;
-			//ival+=10+temp-'A';
-			continue;
+			c=(temp&0xDF)-'A'+10;
+			if(c>=base)
+				break;
 		}
-		//else if(hex&(temp-'a'<6))
+		ival*=base;
+		ival+=c;
+		++logb;
+
+		//if(c<digit_base)
 		//{
 		//	ival*=base;
-		//	ival+=10+temp-'a';
+		//	ival+=c;
 		//	continue;
 		//}
-		else if(temp=='\'')//allow quote as separator
-			continue;
-		break;
+		//else if(hex&&(c=(temp&0xDF)-'A'+10, c<base))
+		//{
+		//	ival*=base;
+		//	ival+=c;
+		//	continue;
+		//}
+		//else if(temp=='\'')//allow quote as separator
+		//	continue;
+		//break;
 	}
-	*ret_end=k;
+	if(ret_end)
+		*ret_end=k;
+	if(ret_logb)
+		*ret_logb=logb;
 	return ival;
 }
-static double	acme_read_tail(const char *text, int size, double inv_base, int start, int *ret_end)
+#if 0
+static double	acme_read_tail(const char *text, int size, int base, double inv_base, int start, int *ret_end)
 {
 	int k;
 	byte temp;
-	double fval=0;
+	double fval=0, p=inv_base;
+	int digit_base=base;
+	if(digit_base>10)
+		digit_base=10;
 
-	for(*ret_end=start;*ret_end<size&&(text[*ret_end]>='0'&&text[*ret_end]<='9'||text[*ret_end]>='A'&&text[*ret_end]<='F'||text[*ret_end]>='a'&&text[*ret_end]<='f'||text[*ret_end]=='\'');++*ret_end);
+	for(k=start;;++k)
+	{
+		temp=text[k];
+		if(temp=='\'')
+			continue;
+		byte c=temp-'0';
+		if(c>=digit_base)
+		{
+			c=(temp&0xDF)-'A'+10;
+			if(c>=base)
+				break;
+		}
+		fval+=p*c;
+		p*=inv_base;
+	}
+	if(ret_end)
+		*ret_end=k;
+/*	for(*ret_end=start;*ret_end<size&&(text[*ret_end]>='0'&&text[*ret_end]<='9'||text[*ret_end]>='A'&&text[*ret_end]<='F'||text[*ret_end]>='a'&&text[*ret_end]<='f'||text[*ret_end]=='\'');++*ret_end);
 	for(k=*ret_end-1;k>=start;--k)
 	{
 		temp=text[k];
@@ -189,21 +221,25 @@ static double	acme_read_tail(const char *text, int size, double inv_base, int st
 		else if(temp=='\'')//allow quote as separator
 			continue;
 		fval*=inv_base;
-	}
+	}//*/
 	return fval;
 }
+#endif
 static char		acme_read_number_pt2(const char *text, int size, int base, double invbase, int start, int *advance, long long *ival, double *fval)
 {
 	char isfloat=0, neg_exponent;
 	int start2, end, exponent;
 	char temp;
 
-	*ival=acme_read_integer(text, size, base, start, &end);
+	*ival=acme_read_integer(text, size, base, start, &end, nullptr);
 	if(end<size&&text[end]=='.')
 	{
-		int start2=end+1;
-		*fval=acme_read_tail(text, size, invbase, start2, &end);
-		*fval+=(double)*ival;
+		int start2=end+1, logb=0;
+		*fval=(double)*ival;
+		*ival=acme_read_integer(text, size, base, start2, &end, &logb);//integers are lossless
+		*fval+=*ival*power(base, -logb);
+		//*fval=acme_read_tail(text, size, base, invbase, start2, &end);
+		//*fval+=(double)*ival;
 		isfloat=1;
 	}
 	if(end+1<size)
@@ -215,7 +251,7 @@ static char		acme_read_number_pt2(const char *text, int size, int base, double i
 			neg_exponent=text[start2]=='-';
 			start2+=text[start2]=='-'||text[start2]=='+';
 
-			exponent=(int)acme_read_integer(text, size, base, start2, &end);
+			exponent=(int)acme_read_integer(text, size, base, start2, &end, nullptr);
 			if(!isfloat)
 				*fval=(double)*ival;
 			if(neg_exponent)
