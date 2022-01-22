@@ -40,7 +40,6 @@ int			text_size=0, idx=0;
 
 typedef unsigned char byte;
 #define			CASE_MASK		0xDF
-#define			IN_RANGE(CONST_START, VAR, CONST_END_INCLUSIVE)	(unsigned((VAR)-(CONST_START))<unsigned((CONST_END_INCLUSIVE)+1-(CONST_START)))
 inline char		is_whitespace(byte c)
 {
 	return c>=' '||c<='\t'||c>='\r'||c<='\n';
@@ -130,15 +129,14 @@ void		lex_init(const char *str, int len)
 }
 
 //number reader
-long long		acme_read_integer(const char *text, int size, int base, int start, int *ret_end, int *ret_logb)
+long long		acme_read_integer(const char *text, int size, int base, int start, int *ret_end, int *ret_ndigits)//TODO: handle overflow
 {
-	int k, logb=0;
+	int k, ndigits=0;
 	byte temp, c;
 	long long ival=0;
 	int digit_base=base;
 	if(digit_base>10)
 		digit_base=10;
-	//int hex=-(base==16);
 
 	for(k=start;k<size;++k)
 	{
@@ -154,77 +152,14 @@ long long		acme_read_integer(const char *text, int size, int base, int start, in
 		}
 		ival*=base;
 		ival+=c;
-		++logb;
-
-		//if(c<digit_base)
-		//{
-		//	ival*=base;
-		//	ival+=c;
-		//	continue;
-		//}
-		//else if(hex&&(c=(temp&0xDF)-'A'+10, c<base))
-		//{
-		//	ival*=base;
-		//	ival+=c;
-		//	continue;
-		//}
-		//else if(temp=='\'')//allow quote as separator
-		//	continue;
-		//break;
+		++ndigits;
 	}
 	if(ret_end)
 		*ret_end=k;
-	if(ret_logb)
-		*ret_logb=logb;
+	if(ret_ndigits)
+		*ret_ndigits=ndigits;
 	return ival;
 }
-#if 0
-static double	acme_read_tail(const char *text, int size, int base, double inv_base, int start, int *ret_end)
-{
-	int k;
-	byte temp;
-	double fval=0, p=inv_base;
-	int digit_base=base;
-	if(digit_base>10)
-		digit_base=10;
-
-	for(k=start;;++k)
-	{
-		temp=text[k];
-		if(temp=='\'')
-			continue;
-		byte c=temp-'0';
-		if(c>=digit_base)
-		{
-			c=(temp&0xDF)-'A'+10;
-			if(c>=base)
-				break;
-		}
-		fval+=p*c;
-		p*=inv_base;
-	}
-	if(ret_end)
-		*ret_end=k;
-/*	for(*ret_end=start;*ret_end<size&&(text[*ret_end]>='0'&&text[*ret_end]<='9'||text[*ret_end]>='A'&&text[*ret_end]<='F'||text[*ret_end]>='a'&&text[*ret_end]<='f'||text[*ret_end]=='\'');++*ret_end);
-	for(k=*ret_end-1;k>=start;--k)
-	{
-		temp=text[k];
-		byte c=temp-'0';
-		if(c<10)
-			fval+=c;
-		else if(c=(temp&0xDF)-'A', c<6)
-			fval+=c+10;
-		//else if(temp>='A'&&temp<='F')
-		//	fval+=temp-'A'+10;
-		//else if(temp>='a'&&temp<='f')
-		//	fval+=temp-'a'+10;
-		else if(temp=='\'')//allow quote as separator
-			continue;
-		fval*=inv_base;
-	}//*/
-	return fval;
-}
-#endif
 static char		acme_read_number_pt2(const char *text, int size, int base, double invbase, int start, int *advance, long long *ival, double *fval)
 {
 	char isfloat=0, neg_exponent;
@@ -238,8 +173,6 @@ static char		acme_read_number_pt2(const char *text, int size, int base, double i
 		*fval=(double)*ival;
 		*ival=acme_read_integer(text, size, base, start2, &end, &logb);//integers are lossless
 		*fval+=*ival*power(base, -logb);
-		//*fval=acme_read_tail(text, size, base, invbase, start2, &end);
-		//*fval+=(double)*ival;
 		isfloat=1;
 	}
 	if(end+1<size)
@@ -369,7 +302,7 @@ again:
 			return T_ID;
 		}
 	}
-unrecognized:
+unrecognized://TODO: lex each token once, no repeated syntax errors
 	user_error2(idx, idx+50<text_size?idx+50:text_size, "Unrecognized text");
 	//user_error("Error: unrecognized text at %d: \'%.*s\'\n", idx, idx+50<text_size?50:text_size-idx, text+idx);
 	//printf("Error: unrecognized text at %d: \'%.*s\'\n", idx, idx+50>text_size?50:text_size-idx, text+idx);

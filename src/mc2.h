@@ -308,6 +308,7 @@ struct		Matrix//2*4+4+4=16 bytes
 //{
 //	std::vector<Comp> num, den;
 //};
+#define		IN_RANGE(CONST_START, VAR, CONST_END_INCLUSIVE)	(unsigned((VAR)-(CONST_START))<unsigned((CONST_END_INCLUSIVE)+1-(CONST_START)))
 #define		GET(DATA, DX, KX, KY)	DATA[(DX)*(KY)+(KX)]
 void		print_help();
 bool		get_str_from_file(std::string &str);
@@ -323,6 +324,8 @@ void		lex_init(const char *str, int len);
 int			lex_skip_space();
 TokenType	lex_get(bool space_sensitive);//space-sensitive: true: you need the leading space/newline token (before an actual token), false: space is ignored
 TokenType	lex_look_ahead(int k, bool space_sensitive);
+long long	acme_read_integer(const char *text, int size, int base, int start, int *ret_end, int *ret_logb);
+char		acme_read_number(const char *text, int size, int k, int *advance, long long *ival, double *fval);//returns  0: integer, 1: float, 2: error
 
 
 //mc2_parser.cpp

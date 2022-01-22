@@ -1495,6 +1495,7 @@ bool		r_unary(Matrix &m, bool space_sensitive)
 			//region - functions
 #if 1
 		case T_ANS:case T_PRINTMODE:
+		case T_F2H:
 		case T_ROOTS:
 		case T_SAMPLE:case T_INVZ:
 		case T_IDEN:
@@ -1559,6 +1560,17 @@ bool		r_unary(Matrix &m, bool space_sensitive)
 						printf("Fractions: ON\n");
 					else
 						printf("Fractions: OFF\n");
+				}
+				break;
+			case T_F2H:
+				{
+					if(m.flags!=M_SCALAR||abs(m.data->i)>1e-10)
+						return user_error2(idx0, idx, "Expected a real scalar");
+					unsigned char buf[8]={};
+					memcpy(buf, &m.data->r, 8);
+					for(int k=0;k<8;++k)
+						printf("%02X", buf[7-k]);
+					printf("\n");
 				}
 				break;
 			case T_ROOTS:
@@ -1869,6 +1881,10 @@ bool		r_unary(Matrix &m, bool space_sensitive)
 					}
 					CFREE(m.data);
 					m.data=temp;
+					std::sort(m.data, m.data+m.dx, [](Comp const &a, Comp const &b)
+					{
+						return a.r<b.r;
+					});
 					m.dy=1;
 				}
 				break;
@@ -2181,15 +2197,15 @@ bool		r_unary(Matrix &m, bool space_sensitive)
 				if(!r_assign_expr(A, false))
 					return false;
 				if(lex_get(false)!=T_COMMA)
-					return user_error2(idx0, idx, "Expected a comma \',\' of binary function call");
+					return user_error2(idx0, idx, "Expected a comma \',\' of function call");
 				if(!r_assign_expr(B, false))
 					return false;
 				if(lex_get(false)!=T_COMMA)
-					return user_error2(idx0, idx, "Expected a comma \',\' of binary function call");
+					return user_error2(idx0, idx, "Expected a comma \',\' of function call");
 				if(!r_assign_expr(C, false))
 					return false;
 				if(lex_get(false)!=T_COMMA)
-					return user_error2(idx0, idx, "Expected a comma \',\' of binary function call");
+					return user_error2(idx0, idx, "Expected a comma \',\' of function call");
 				if(!r_assign_expr(D, false))
 					return false;
 				if(lex_get(false)!=T_RPR)
@@ -2369,6 +2385,41 @@ bool		r_unary(Matrix &m, bool space_sensitive)
 #endif
 		case T_POLY:
 			return my_error(idx0, idx);
+		case T_H2F:
+			{
+				for(;iswspace(text[idx]);++idx);
+				char parens=text[idx]=='(';
+				if(parens)
+				{
+					++idx;
+					for(;iswspace(text[idx]);++idx);
+				}
+
+				idx+=text[idx]=='0'&&(text[idx+1]&0xDF)=='X';
+
+				//long long val=0;
+				//double fval=0;
+				//int advance=0;
+				//char ret=acme_read_number(text, text_size, idx, &advance, &val, &fval);
+				//if(ret==1||ret==2)
+				//	return user_error2(idx0, idx, "Expected an integer");
+
+				int end=0, ndigits=0;
+				auto val=acme_read_integer(text, text_size, 16, idx, &end, &ndigits);
+				idx=end+parens;
+				if(ndigits!=8&&ndigits!=16)
+					return user_error2(idx0, idx, "Expected 8 or 16 digits");
+				
+				m.name=nullptr;
+				m.dx=m.dy=1;
+				m.resize();
+				if(ndigits==16)
+					m.data->r=(double&)val;
+				else
+					m.data->r=(float&)val;
+				m.data->i=0;
+				return r_postfix(m, space_sensitive);
+			}
 		case T_MINUS:
 			m.name=nullptr;
 			if(!r_unary(m, space_sensitive))

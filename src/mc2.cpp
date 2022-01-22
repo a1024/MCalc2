@@ -79,6 +79,7 @@ void		print_help()
 		"  min/max/mean/sum: Reduce columns then rows (Matlab-style)\n"
 		"  frac(x, tolerance): Returns [floor(x), num, den]\n"
 		"  rand: Random number in [0, 1] (seed with RDTSC)\n"
+		"  bh2f/f2bh: Convert hex to float / float to hex (big-endian)\n"
 		"Vectors:\n"
 		"  cross(3D vec, 3D vec) -> 3D vec\n"
 		"  cross(2D vec, 2D vec) -> scalar\n"

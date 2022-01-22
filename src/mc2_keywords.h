@@ -3,7 +3,7 @@ TOKEN(0, T_IGNORED)
 
 //functions
 TOKEN("ans", T_ANS) TOKEN("cmd", T_CMD) TOKEN("printmode", T_PRINTMODE)//general
-TOKEN("frac", T_FRAC)//numbers
+TOKEN("frac", T_FRAC) TOKEN("h2f", T_H2F) TOKEN("f2h", T_F2H)//numbers
 TOKEN("conv", T_CONV) TOKEN("polpow", T_POLPOW) TOKEN("roots", T_ROOTS) TOKEN("poly", T_POLY)//polynomials
 TOKEN("ldiv", T_LDIV) TOKEN("sample", T_SAMPLE) TOKEN("invz", T_INVZ)//fractions
 TOKEN("cross", T_CROSS)//row vectors
