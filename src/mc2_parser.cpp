@@ -626,7 +626,7 @@ void		impl_polsub(std::vector<Comp> &dst, std::vector<Comp> const &f)
 	if(s0<s1)
 	{
 		dst.resize(s1);
-		CMEMZERO(dst.data(), s1-s0);
+		CMEMZERO(dst.data()+s0, s1-s0);
 	}
 	for(int k=0;k<(int)f.size();++k)
 	{
@@ -809,7 +809,7 @@ void		print_polmat(std::vector<Comp> const *mp, unsigned short dx, unsigned shor
 		printf("\n");
 	}
 }
-int			str_int(std::string &str, long long n, int base=10)
+int			str_int(std::string &str, long long n, int base=10, int zeropad=0)
 {
 	char buf[22]={0};
 	int ndigits=0;
@@ -820,14 +820,24 @@ int			str_int(std::string &str, long long n, int base=10)
 		n2/=base;
 		++ndigits;
 	}
-	int neg=n<0;
+	int neg=n<0, printed=0;
 	if(neg)
-		str+='-';
+		str+='-', ++printed;
+	zeropad+=!zeropad;
+	int diff=zeropad-(printed+ndigits);
+	if(diff>0)
+	{
+		str.append(diff, '0');
+		printed+=diff;
+	}
 	if(ndigits)
+	{
 		str.append(buf+21-ndigits, ndigits);
-	else
-		str+='0', ++ndigits;
-	return neg+ndigits;
+		printed+=ndigits;
+	}
+	if(!printed)
+		str+='0', ++printed;
+	return printed;
 }
 int			str_double_b10(std::string &str, double x, int decimals=7)
 {
@@ -856,16 +866,17 @@ int			str_double_b10(std::string &str, double x, int decimals=7)
 		str+='-', ++printed;
 	if(x2>0.0001&&x2<1000000000)
 	{
-		auto fx=floor(x2);
+		auto fx=floor(x2+tolerance);
 		printed+=str_int(str, (int)fx);
 		x2-=fx;
 		//if(printed+1<point||x2)
 		//if(printed<decimals||x2)
 		if(x2)
 		{
+			str+='.', ++printed;
 			x2*=_10pow(decimals-printed);
-			fx=floor(x2);
-			printed+=str_int(str, (int)fx);
+			fx=floor(x2+tolerance);
+			printed+=str_int(str, (int)fx, 10, decimals-printed);
 			while(str.back()=='0')
 				str.pop_back(), --printed;
 			if(str.back()=='.')
@@ -884,11 +895,11 @@ int			str_double_b10(std::string &str, double x, int decimals=7)
 	{
 		int p=floor_log10(x2+tolerance);
 		x2*=_10pow(-p);
-		auto fx=floor(x2);
+		auto fx=floor(x2+tolerance);
 		printed+=str_int(str, (int)fx);
 		x2-=fx;
 		x2*=_10pow(decimals-1);
-		fx=floor(x2);
+		fx=floor(x2+tolerance);
 		printed+=str_int(str, (int)fx);
 		while(str.back()=='0')
 			str.pop_back(), --printed;
