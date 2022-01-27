@@ -857,7 +857,7 @@ int			str_int(std::string &str, long long n, int base=10)
 		str+="0x", printed+=2;
 		break;
 	}
-	str_int_impl(str, n, base);
+	printed+=str_int_impl(str, n, base);
 	return printed;
 }
 int			str_double(std::string &str, double x, int digits=7, int base=10)
