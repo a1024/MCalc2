@@ -898,35 +898,35 @@ int			str_double(std::string &str, double x, int digits=7, int base=10)
 		break;
 	}
 	int p=0;
-	if(x2<0.0001||x2>1000000000)//scientific notation
+	if(x2<0.0001||x2>1000000000)//extract exponent for scientific notation
 	{
 		p=floor_log10(x2+tolerance);
 		x2*=_10pow(-p);
 	}
 	auto fx=floor(x2+tolerance);
-	printed+=str_int_impl(str, (unsigned long long)fx, base);
-	x2-=fx;
-	if(x2>tolerance)
+	printed+=str_int_impl(str, (unsigned long long)fx, base);//print integer part
+	int remaining=digits-printed;
+	if(remaining>0)
 	{
-		str+='.', ++printed;
-		x2*=_10pow(digits-printed);
-		fx=floor(x2+tolerance);
-		printed+=str_int_impl(str, (unsigned long long)fx, base, digits-printed);
-		while(str.back()=='0')
-			str.pop_back(), --printed;
-		if(str.back()=='.')
-			str.pop_back(), --printed;
+		x2-=fx;
+		if(x2>tolerance)//print tail
+		{
+			str+='.', ++printed;
+			x2*=_10pow(remaining);
+			fx=floor(x2+tolerance);
+			printed+=str_int_impl(str, (unsigned long long)fx, base, remaining);
+			while(str.back()=='0')
+				str.pop_back(), --printed;
+			if(str.back()=='.')
+				str.pop_back(), --printed;
+		}
 	}
-	if(p)
+	if(p)//print exponent
 	{
-		if(base==10)
-			str+='e';
-		else
-			str+='p';
-		++printed;
+		str+=base==10?'e':'p', ++printed;
 		if(p>0)
 			str+='+', ++printed;
-		printed+=str_int(str, p);
+		printed+=str_int(str, p);//exponent is always base-10
 	}
 	return printed;
 }
