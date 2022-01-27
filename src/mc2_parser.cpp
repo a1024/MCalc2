@@ -809,21 +809,19 @@ void		print_polmat(std::vector<Comp> const *mp, unsigned short dx, unsigned shor
 		printf("\n");
 	}
 }
-int			str_int(std::string &str, long long n, int base=10, int zeropad=0)
+int			str_int_impl(std::string &str, unsigned long long n, int base=10, int zeropad=0)
 {
 	char buf[22]={0};
 	int ndigits=0;
-	auto n2=abs(n);
-	while(n2)
+	lldiv_t res={};
+	while(n)
 	{
-		buf[20-ndigits]=char('0'+n2%base);
-		n2/=base;
+		res=lldiv(n, base);
+		buf[20-ndigits]=char('0'+res.rem);
+		n=res.quot;
 		++ndigits;
 	}
-	int neg=n<0, printed=0;
-	if(neg)
-		str+='-', ++printed;
-	zeropad+=!zeropad;
+	int printed=0;
 	int diff=zeropad-(printed+ndigits);
 	if(diff>0)
 	{
@@ -839,7 +837,30 @@ int			str_int(std::string &str, long long n, int base=10, int zeropad=0)
 		str+='0', ++printed;
 	return printed;
 }
-int			str_double_b10(std::string &str, double x, int decimals=7)
+int			str_int(std::string &str, long long n, int base=10)
+{
+	int printed=0;
+	if(n<0)
+	{
+		n=-n;
+		str+='-', ++printed;
+	}
+	switch(base)
+	{
+	case 2:
+		str+="0b", printed+=2;
+		break;
+	case 8:
+		str+='0', ++printed;
+		break;
+	case 16:
+		str+="0x", printed+=2;
+		break;
+	}
+	str_int_impl(str, n, base);
+	return printed;
+}
+int			str_double(std::string &str, double x, int digits=7, int base=10)
 {
 	const double tolerance=1e-10;
 	int printed=0;
@@ -861,85 +882,52 @@ int			str_double_b10(std::string &str, double x, int decimals=7)
 		str+='0';
 		return 1;
 	}
-	int total=decimals+1;
+	int total=digits+1;
 	if(x<0)
 		str+='-', ++printed;
-	if(x2>0.0001&&x2<1000000000)
+	switch(base)
 	{
-		auto fx=floor(x2+tolerance);
-		printed+=str_int(str, (int)fx);
-		x2-=fx;
-		//if(printed+1<point||x2)
-		//if(printed<decimals||x2)
-		if(x2)
-		{
-			str+='.', ++printed;
-			x2*=_10pow(decimals-printed);
-			fx=floor(x2+tolerance);
-			printed+=str_int(str, (int)fx, 10, decimals-printed);
-			while(str.back()=='0')
-				str.pop_back(), --printed;
-			if(str.back()=='.')
-				str.pop_back(), --printed;
-			//str+='.', ++printed;
-			//for(double gain=1;x2*gain>tolerance||printed<total;gain*=0.1)
-			//{
-			//	x2*=10;
-			//	int digit=(int)(x2-floor(x2));
-			//	str+='0'+digit;
-			//	++printed;
-			//}
-		}
+	case 2:
+		str+="0b", printed+=2;
+		break;
+	case 8:
+		str+='0', ++printed;
+		break;
+	case 16:
+		str+="0x", printed+=2;
+		break;
 	}
-	else//extreme value: use scientific notation
+	int p=0;
+	if(x2<0.0001||x2>1000000000)//scientific notation
 	{
-		int p=floor_log10(x2+tolerance);
+		p=floor_log10(x2+tolerance);
 		x2*=_10pow(-p);
-		auto fx=floor(x2+tolerance);
-		printed+=str_int(str, (int)fx);
-		x2-=fx;
-		x2*=_10pow(decimals-1);
+	}
+	auto fx=floor(x2+tolerance);
+	printed+=str_int_impl(str, (unsigned long long)fx, base);
+	x2-=fx;
+	if(x2>tolerance)
+	{
+		str+='.', ++printed;
+		x2*=_10pow(digits-printed);
 		fx=floor(x2+tolerance);
-		printed+=str_int(str, (int)fx);
+		printed+=str_int_impl(str, (unsigned long long)fx, base, digits-printed);
 		while(str.back()=='0')
 			str.pop_back(), --printed;
 		if(str.back()=='.')
 			str.pop_back(), --printed;
-		if(p)
-		{
-			str+='e', ++printed;
-			if(p>0)
-				str+='+', ++printed;
-			printed+=str_int(str, p);
-		}
 	}
-/*	bool start=true;
-	int p0=0, prev_p=0;
-	for(;;)
+	if(p)
 	{
-		int p=floor_log10(x2+tolerance);
-		if(start)
-			p0=p;
-		else if(p!=prev_p-1)
-			p=prev_p-1;
-		int msd=int(x2*_10pow(-p));
-		str+='0'+msd;
-		x2-=msd*_10pow(p);
+		if(base==10)
+			str+='e';
+		else
+			str+='p';
 		++printed;
-		//if(abs(x2)<tolerance||printed>=19)
-		if(!x2||printed>=19)
-			break;
-		prev_p=p;
-		if(start)
-		{
-			str+='.';
-			start=false;
-		}
+		if(p>0)
+			str+='+', ++printed;
+		printed+=str_int(str, p);
 	}
-	str+='e', ++printed;
-	if(p0>=0)
-		str+='+', ++printed;
-	printed+=str_int(str, p0);//*/
 	return printed;
 }
 int			str_coeff(std::string &str, Comp const &z, bool plus, bool parens, short power)
@@ -952,10 +940,10 @@ int			str_coeff(std::string &str, Comp const &z, bool plus, bool parens, short p
 			str+='+', ++printed;
 		if(parens)
 			str+='(', ++printed;
-		printed+=str_double_b10(str, z.r);
+		printed+=str_double(str, z.r);
 		if(z.i>0)
 			str+='+', ++printed;
-		printed+=str_double_b10(str, z.i);
+		printed+=str_double(str, z.i);
 		if(parens)
 			str+=')', ++printed;
 	}
@@ -969,7 +957,7 @@ int			str_coeff(std::string &str, Comp const &z, bool plus, bool parens, short p
 		{
 			if(plus&&z.i>0)
 				str+='+', ++printed;
-			printed+=str_double_b10(str, z.i);
+			printed+=str_double(str, z.i);
 		}
 	}
 	else if(pr)
@@ -982,7 +970,7 @@ int			str_coeff(std::string &str, Comp const &z, bool plus, bool parens, short p
 		{
 			if(plus&&z.r>0)
 				str+='+', ++printed;
-			printed+=str_double_b10(str, z.r);
+			printed+=str_double(str, z.r);
 		}
 	}
 	return printed;
