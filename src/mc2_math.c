@@ -452,7 +452,7 @@ void		impl_subbuffers(Comp *dst, Comp const *a, Comp const *b, int count)
 {
 	__m128d va, vb;
 	Comp *p=dst, *end=dst+count;
-	for(;p<end;p+=2, a+=2, b+=2)
+	for(;p<end;++p, ++a, ++b)
 	{
 		va=_mm_load_pd((double*)a);
 		vb=_mm_load_pd((double*)b);
@@ -467,7 +467,7 @@ void		impl_negbuffer(Comp *dst, Comp const *a, int count)
 {
 	__m128d va, zero=_mm_setzero_pd();
 	Comp *p=dst, *end=dst+count;
-	for(;p<end;p+=2, a+=2)
+	for(;p<end;++p, ++a)
 	{
 		va=_mm_load_pd((double*)a);
 		va=_mm_sub_pd(zero, va);
@@ -481,7 +481,7 @@ void		impl_buf_plus_val(Comp *dst, Comp const *a, const Comp *val, int count)
 {
 	__m128d va, vb=_mm_load_pd((double*)val);
 	Comp *p=dst, *end=dst+count;
-	for(;p<end;p+=2, a+=2)
+	for(;p<end;++p, ++a)
 	{
 		va=_mm_load_pd((double*)a);
 		va=_mm_add_pd(va, vb);
@@ -495,7 +495,7 @@ void		impl_val_minus_buf(Comp *dst, const Comp *val, Comp const *b, int count)
 {
 	__m128d va=_mm_load_pd((double*)val), vb;
 	Comp *p=dst, *end=dst+count;
-	for(;p<end;p+=2, b+=2)
+	for(;p<end;++p, ++b)
 	{
 		vb=_mm_load_pd((double*)b);
 		vb=_mm_sub_pd(va, vb);
@@ -508,7 +508,7 @@ void		impl_val_minus_buf(Comp *dst, const Comp *val, Comp const *b, int count)
 void		impl_buf_mul_val(Comp *dst, Comp const *a, const Comp *val, int count)
 {
 	Comp *p=dst, *end=dst+count;
-	for(;p<end;p+=2, a+=2)
+	for(;p<end;++p, ++a)
 		c_mul(p, a, val);
 	//int k;
 	//for(k=0;k<size;++k)
