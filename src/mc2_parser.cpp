@@ -127,9 +127,9 @@ bool		user_error2(int start, int end, const char *format, ...)
 	if(end>text_size)
 		end=text_size;
 	if(start<end)
-		printed=sprintf_s(g_buf, g_buf_size, "Error: \'%.*s\' ", end-start, text+start);
+		printed=sprintf_s(g_buf, g_buf_size, "Error at %d: \'%.*s\' ", start, end-start, text+start);
 	else
-		printed=sprintf_s(g_buf, g_buf_size, "Error: ");
+		printed=sprintf_s(g_buf, g_buf_size, "Error at %d: ", start);
 	va_list args;
 	va_start(args, format);
 	printed+=vsprintf_s(g_buf+printed, g_buf_size-printed, format, args);
@@ -3090,7 +3090,7 @@ int			solve(std::string &str, bool again)
 				break;
 			}
 			idx0=idx;
-			switch(lex_get(false))
+			switch(lex_get(false))//BUG: trailing whitespace expects expression
 			{
 			case T_SEMICOLON:
 				continue;
