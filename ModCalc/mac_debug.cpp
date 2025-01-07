@@ -1,4 +1,4 @@
-//mc2_debug.c - Pointer tracking for debugging
+//mac_debug.c - Pointer tracking for debugging
 //Copyright (C) 2021  Ayman Wagih Mohsen
 //
 //This program is free software: you can redistribute it and/or modify

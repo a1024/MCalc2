@@ -122,7 +122,7 @@ struct		StringLibrary
 	std::vector<char*> v;
 	bool binary_search(char *e, int &idx)const
 	{
-		int size=v.size(), L=0, R=size-1;
+		int size=(int)v.size(), L=0, R=size-1;
 		while(L<=R)
 		{
 			int middle=(L+R)>>1;
@@ -145,7 +145,7 @@ struct		StringLibrary
 		const char file[]=__FILE__;
 #endif
 		if(!len)
-			len=strlen(static_array);
+			len=(int)strlen(static_array);
 		char *p=new char[len+1];
 		memcpy(p, static_array, len);
 		p[len]=0;

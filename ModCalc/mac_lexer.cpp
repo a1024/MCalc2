@@ -1,4 +1,4 @@
-//mc2_lexer.cpp - MCalc lexer
+//mac_lexer.cpp - ModCalc lexer
 //Copyright (C) 2021  Ayman Wagih Mohsen
 //
 //This program is free software: you can redistribute it and/or modify
@@ -14,24 +14,24 @@
 //You should have received a copy of the GNU General Public License
 //along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-#include	"mc2_aligned_vector.h"
+#include	"mac_aligned_vector.h"
 #include	<string.h>
 #include	<tmmintrin.h>
 #include	<assert.h>
 #include	<vector>
 #include	<algorithm>
-#include	"mc2.h"
+#include	"mac.h"
 const char	file[]=__FILE__;
 const char	*keywords[]=
 {
 #define		TOKEN(STR, LABEL)	STR,
-#include	"mc2_keywords.h"
+#include	"mac_keywords.h"
 #undef		TOKEN
 };
 
 StringLibrary strings;
 
-double		lex_number=0;
+Int			lex_number;
 char		*lex_id=nullptr;
 
 static bool	lexer_initialized=false;
@@ -40,6 +40,7 @@ int			text_size=0, idx=0;
 
 typedef unsigned char byte;
 #define			CASE_MASK		0xDF
+#define			IN_RANGE(CONST_START, VAR, CONST_END_INCLUSIVE)	(unsigned((VAR)-(CONST_START))<unsigned((CONST_END_INCLUSIVE)+1-(CONST_START)))
 inline char		is_whitespace(byte c)
 {
 	return c>=' '||c<='\t'||c>='\r'||c<='\n';
@@ -127,38 +128,79 @@ void		lex_init(const char *str, int len)
 	text_size=len;
 	idx=0;
 }
+void		print_sorted_keywords()
+{
+	for(int k=32;k<127;++k)
+	{
+		auto &slot=slots[k];
+		for(int k2=0;k2<(int)slot.size();++k2)
+			printf("%s\n", slot[k2].name);
+	}
+	printf("\n");
+}
 
 //number reader
-long long		acme_read_integer(const char *text, int size, int base, int start, int *ret_end, int *ret_ndigits)//TODO: handle overflow
+long long		acme_read_integer(const char *text, int size, int base, int start, int *ret_end)
 {
-	int k, ndigits=0;
-	byte temp, c;
+	int k;
+	byte temp;
 	long long ival=0;
-	int digit_base=base;
-	if(digit_base>10)
-		digit_base=10;
+	int hex=-(base==16);
 
 	for(k=start;k<size;++k)
 	{
 		temp=text[k];
-		if(temp=='\'')
-			continue;
-		c=temp-'0';
-		if(c>=digit_base)
+		byte c=temp-'0';
+		if(c<10)
 		{
-			c=(temp&0xDF)-'A'+10;
-			if(c>=base)
-				break;
+			ival*=base;
+			ival+=c;
+			continue;
 		}
-		ival*=base;
-		ival+=c;
-		++ndigits;
+		else if(hex&&(c=(temp&0xDF)-'A', c<6))
+		{
+			ival*=base;
+			ival+=10+c;
+			//ival+=10+temp-'A';
+			continue;
+		}
+		//else if(hex&(temp-'a'<6))
+		//{
+		//	ival*=base;
+		//	ival+=10+temp-'a';
+		//	continue;
+		//}
+		else if(temp=='\'')//allow quote as separator
+			continue;
+		break;
 	}
-	if(ret_end)
-		*ret_end=k;
-	if(ret_ndigits)
-		*ret_ndigits=ndigits;
+	*ret_end=k;
 	return ival;
+}
+static double	acme_read_tail(const char *text, int size, double inv_base, int start, int *ret_end)
+{
+	int k;
+	byte temp;
+	double fval=0;
+
+	for(*ret_end=start;*ret_end<size&&(text[*ret_end]>='0'&&text[*ret_end]<='9'||text[*ret_end]>='A'&&text[*ret_end]<='F'||text[*ret_end]>='a'&&text[*ret_end]<='f'||text[*ret_end]=='\'');++*ret_end);
+	for(k=*ret_end-1;k>=start;--k)
+	{
+		temp=text[k];
+		byte c=temp-'0';
+		if(c<10)
+			fval+=c;
+		else if(c=(temp&0xDF)-'A', c<6)
+			fval+=c+10;
+		//else if(temp>='A'&&temp<='F')
+		//	fval+=temp-'A'+10;
+		//else if(temp>='a'&&temp<='f')
+		//	fval+=temp-'a'+10;
+		else if(temp=='\'')//allow quote as separator
+			continue;
+		fval*=inv_base;
+	}
+	return fval;
 }
 static char		acme_read_number_pt2(const char *text, int size, int base, double invbase, int start, int *advance, long long *ival, double *fval)
 {
@@ -166,13 +208,12 @@ static char		acme_read_number_pt2(const char *text, int size, int base, double i
 	int start2, end, exponent;
 	char temp;
 
-	*ival=acme_read_integer(text, size, base, start, &end, nullptr);
+	*ival=acme_read_integer(text, size, base, start, &end);
 	if(end<size&&text[end]=='.')
 	{
-		int start2=end+1, logb=0;
-		*fval=(double)*ival;
-		*ival=acme_read_integer(text, size, base, start2, &end, &logb);//integers are lossless
-		*fval+=*ival*power(base, -logb);
+		int start2=end+1;
+		*fval=acme_read_tail(text, size, invbase, start2, &end);
+		*fval+=(double)*ival;
 		isfloat=1;
 	}
 	if(end+1<size)
@@ -184,7 +225,7 @@ static char		acme_read_number_pt2(const char *text, int size, int base, double i
 			neg_exponent=text[start2]=='-';
 			start2+=text[start2]=='-'||text[start2]=='+';
 
-			exponent=(int)acme_read_integer(text, size, base, start2, &end, nullptr);
+			exponent=(int)acme_read_integer(text, size, base, start2, &end);
 			if(!isfloat)
 				*fval=(double)*ival;
 			if(neg_exponent)
@@ -253,8 +294,6 @@ again:
 				if(!opt.endswithnan||!(IN_RANGE('0', next, '9')|IN_RANGE('A', next, 'Z')|IN_RANGE('a', next, 'z')|(next=='_')))
 				{
 					idx+=opt.len;
-					//if(!space_sensitive)
-					//	skip_space();
 					return (TokenType)opt.token;
 				}
 			}
@@ -262,21 +301,74 @@ again:
 	}
 	switch(text[idx])
 	{
-	case '0':case '1':case '2':case '3':case '4':case '5':case '6':case '7':case '8':case '9':case '.':
+	case '0':
+		switch(text[idx+1]&0xDF)
 		{
-			long long ival;
-			double fval;
-			int advance;
-			char ret=acme_read_number(text, text_size, idx, &advance, &ival, &fval);
-			if(ret==2||!advance)
-				goto unrecognized;
-			if(ret)
-				lex_number=fval;
-			else
-				lex_number=(double)ival;
-			idx+=advance;
-			//if(!space_sensitive)
-			//	skip_space();
+		case 'X'://hex
+			{
+				int start=idx+2;
+				if(!IN_RANGE('0', text[start], '9')&&!IN_RANGE('A', text[start]&0xDF, 'F'))
+					goto unrecognized;
+				for(idx=start+1;idx<text_size&&(IN_RANGE('0', text[idx], '9')||IN_RANGE('A', text[idx]&0xDF, 'F'));++idx);
+				if(is_alphanumeric(text[idx]))
+					goto unrecognized;
+				int ndigits=idx-start;
+
+				lex_number.setzero((ndigits+7)>>3);
+				for(int k=0;k<ndigits;++k)
+				{
+					unsigned char c=text[idx-1-k], b=c-'0';
+					if(b>=10)
+						b=(c&0xDF)-'A'+10;
+					lex_number.data->x[k>>3]|=b<<((k&7)<<2);
+				}
+			}
+			return T_NUMBER;
+		case 'B'://bin
+			{
+				int start=idx+2;
+				if(!IN_RANGE('0', text[start], '1'))
+					goto unrecognized;
+				for(idx=start+1;idx<text_size&&IN_RANGE('0', text[idx], '1');++idx);
+				if(is_alphanumeric(text[idx]))
+					goto unrecognized;
+				int ndigits=idx-start;
+
+				lex_number.setzero((ndigits+31)>>5);
+				for(int k=0;k<ndigits;++k)
+					lex_number.data->x[k>>5]|=(text[idx-1-k]-'0')<<(k&31);
+			}
+			return T_NUMBER;
+		}
+		//no break
+	case '1':case '2':case '3':case '4':case '5':case '6':case '7':case '8':case '9'://case '.':
+		{
+			Int temp;
+			lex_number.setzero();
+			for(;IN_RANGE('0', text[idx], '9');++idx)
+			{
+				lex_number*=ten;
+				temp.data->x[0]=text[idx]-'0';
+				lex_number+=temp;
+			}
+
+			//int k2=idx+1;
+			//for(;k2<text_size&&IN_RANGE('0', text[k2], '9');++k2);
+			//if(!lex_number.set(text+idx))
+			//	user_error2(idx, k2, "Error parsing number");
+			//idx=k2;
+			
+			//long long ival;
+			//double fval;
+			//int advance;
+			//char ret=acme_read_number(text, text_size, idx, &advance, &ival, &fval);
+			//if(ret==2||!advance)
+			//	goto unrecognized;
+			//if(ret)
+			//	lex_number=fval;
+			//else
+			//	lex_number=(double)ival;
+			//idx+=advance;
 			return T_NUMBER;
 		}
 		break;
@@ -297,12 +389,10 @@ again:
 			int start=idx;
 			for(;idx<text_size&&text[idx]&&is_alphanumeric(text[idx]);++idx);
 			lex_id=strings.add(text+start, idx-start);
-			//if(!space_sensitive)
-			//	skip_space();
 			return T_ID;
 		}
 	}
-unrecognized://TODO: lex each token once, no repeated syntax errors
+unrecognized:
 	user_error2(idx, idx+50<text_size?idx+50:text_size, "Unrecognized text");
 	//user_error("Error: unrecognized text at %d: \'%.*s\'\n", idx, idx+50<text_size?50:text_size-idx, text+idx);
 	//printf("Error: unrecognized text at %d: \'%.*s\'\n", idx, idx+50>text_size?50:text_size-idx, text+idx);
@@ -310,12 +400,41 @@ unrecognized://TODO: lex each token once, no repeated syntax errors
 	//	skip_space();
 	return T_IGNORED;
 }
-TokenType	lex_look_ahead(int k, bool space_sensitive)
+//TokenType	lex_look_ahead(int k, bool space_sensitive)
+//{
+//	int idx0=idx;
+//	TokenType type=T_IGNORED;
+//	for(int k2=-1;k2<k;++k2)
+//		type=lex_get(space_sensitive);
+//	idx=idx0;
+//	return type;
+//}
+const int	ntokens=0x1000, tmask=ntokens-1;
+Token		tokens[ntokens]={};
+int			t_pos=0, t_count=0;
+std::vector<int> t_indices;
+Token*		lex_next(bool space_sensitive)
 {
-	int idx0=idx;
 	TokenType type=T_IGNORED;
-	for(int k2=-1;k2<k;++k2)
-		type=lex_get(space_sensitive);
-	idx=idx0;
-	return type;
+	for(;t_pos>=t_count&&!space_sensitive&&(type==T_SPACE||type==T_NEWLINE);++t_count)
+	{
+		type=lex_get(true);
+		auto &token=tokens[t_count&tmask];
+		token.type=type;
+		if(type==T_NUMBER)
+			token.idata=std::move(lex_number);
+		else if(type==T_ID)
+			token.sdata=lex_id;
+	}
+	++t_pos;
+	return tokens+(t_pos&tmask);
+}
+void		lex_save()
+{
+	t_indices.push_back(t_pos);
+}
+void		lex_restore()
+{
+	t_pos=t_indices.back();
+	t_indices.pop_back();
 }

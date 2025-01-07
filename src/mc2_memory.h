@@ -60,7 +60,7 @@ static void*	_aligned_realloc(void *oldp, size_t size, size_t align)//inherently
 }
 #endif
 #ifdef _MSC_VER
-#define		scanf	scanf_s
+//#define		scanf	scanf_s
 #endif
 #ifdef DEBUG_MEMORY
 #include	<conio.h>
@@ -108,7 +108,7 @@ static void	memfill(void *dst, const void *src, size_t dstbytes, size_t srcbytes
 		memcpy(dst, src, dstbytes);
 		return;
 	}
-	copied=srcbytes;
+	copied=(unsigned)srcbytes;
 	memcpy(d, s, copied);
 	while(copied<<1<=dstbytes)
 	{

@@ -14,6 +14,7 @@
 //You should have received a copy of the GNU General Public License
 //along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+#define _CRT_SECURE_NO_WARNINGS
 #include	<stdio.h>
 #include	<string>
 #include	<iostream>
@@ -153,7 +154,7 @@ bool		get_str_from_file(std::string &str)
 }
 int			main(int argc, const char **argv)
 {
-	set_console_buffer_size(120, 4000);
+	//set_console_buffer_size(120, 4000);
 	printf("MCALC%s\n\n", argc==2?"":"\t\tCtrl C to exit.");
 
 	std::string str;
@@ -252,7 +253,7 @@ int			main(int argc, const char **argv)
 			printf("Quit? [Y/N] ");
 
 			char c=0;
-			scanf_s("%c", &c);
+			scanf("%c", &c);
 			while(getchar()!='\n');
 
 			//char c=_getche();

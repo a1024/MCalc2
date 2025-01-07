@@ -1,4 +1,4 @@
-//mc2_math.c - MCalc2 math operations
+//mac_math.c - ModCalc math operations
 //Copyright (C) 2021  Ayman Wagih Mohsen, unless source link provided
 //
 //This program is free software: you can redistribute it and/or modify
@@ -14,12 +14,19 @@
 //You should have received a copy of the GNU General Public License
 //along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+#define _CRT_SECURE_NO_WARNINGS
 #include	<stdio.h>
 #include	<stdlib.h>
 #include	<string.h>
 #include	<math.h>
 #include	<tmmintrin.h>
-#include	"mc2_memory.h"
+#include	<vector>
+#ifdef _MSC_VER
+#include<intrin.h>
+#else
+#include<x86intrin.h>
+#endif
+#include	"mac_memory.h"
 static const char file[]=__FILE__;
 
 //	#define	DEBUG_NULLSPACE
@@ -97,6 +104,24 @@ int			ceil_log2(unsigned long long n)
 	//}
 	//return fl;
 }
+int			floor_log10(unsigned long long n)//idx of MSD
+{
+	static const unsigned long long mask[]=
+	{
+		1, 10,
+		1, 100,
+		1, 10000,
+		1, 100000000,
+		1, 10000000000000000,
+	};
+	int logn=0, sh;
+	sh=(n>=mask[9])<<4,	logn+=sh, n/=mask[8+(sh!=0)];
+	sh=(n>=mask[7])<<3,	logn+=sh, n/=mask[6+(sh!=0)];
+	sh=(n>=mask[5])<<2,	logn+=sh, n/=mask[4+(sh!=0)];
+	sh=(n>=mask[3])<<1,	logn+=sh, n/=mask[2+(sh!=0)];
+	sh= n>=mask[1],		logn+=sh;
+	return logn;
+}
 int			floor_log10(double x)
 {
 	static const double pmask[]=//positive powers
@@ -129,7 +154,7 @@ int			floor_log10(double x)
 	if(x>=1)
 	{
 		logn=0;
-		sh=(x>=pmask[17])<<8;	logn+=sh, x*=nmask[16+(sh!=0)];//x>=1
+		sh=(x>=pmask[17])<<8;	logn+=sh, x*=nmask[16+(sh!=0)];
 		sh=(x>=pmask[15])<<7;	logn+=sh, x*=nmask[14+(sh!=0)];
 		sh=(x>=pmask[13])<<6;	logn+=sh, x*=nmask[12+(sh!=0)];
 		sh=(x>=pmask[11])<<5;	logn+=sh, x*=nmask[10+(sh!=0)];
@@ -141,7 +166,7 @@ int			floor_log10(double x)
 		return logn;
 	}
 	logn=-1;
-	sh=(x<nmask[17])<<8;	logn-=sh;	x*=pmask[16+(sh!=0)];//x<1
+	sh=(x<nmask[17])<<8;	logn-=sh;	x*=pmask[16+(sh!=0)];
 	sh=(x<nmask[15])<<7;	logn-=sh;	x*=pmask[14+(sh!=0)];
 	sh=(x<nmask[13])<<6;	logn-=sh;	x*=pmask[12+(sh!=0)];
 	sh=(x<nmask[11])<<5;	logn-=sh;	x*=pmask[10+(sh!=0)];
@@ -188,7 +213,490 @@ double		_10pow(int n)
 }
 
 
-//complex functions
+//modular arithmetic
+Int		zero, one(1), minusone(-1), ten(10);
+std::vector<Int> powersof10;
+int		floor_log10(Int const &n)
+{
+	if(n==zero)
+		return 0x80000000;//
+	if(!powersof10.size())
+	{
+		powersof10.push_back(ten);
+		powersof10.push_back(Int(100));
+	}
+	int log2log10n=0;
+	for(;;)//grow: keep squaring until surpasses n
+	{
+		if(n.abs_cmp(powersof10[log2log10n])<0)
+			break;
+		++log2log10n;
+		while(log2log10n>=(int)powersof10.size())
+		{
+			powersof10.push_back(powersof10.back());
+			powersof10.back()*=powersof10.back();
+		}
+	}
+	if(!log2log10n)
+		return 0;
+	--log2log10n;
+	int log10n=1<<log2log10n;
+	Int ee[]={powersof10[log2log10n], powersof10[log2log10n]};
+	for(--log2log10n;log2log10n>=0;--log2log10n)//binary search: converge to log10n
+	{
+		ee[1]*=powersof10[log2log10n];
+		if(n.abs_cmp(ee[1])>0)
+			ee[0]=ee[1], log10n|=1<<log2log10n;
+	}
+	return log10n;
+}
+int		floor_log2(Int const &n)
+{
+	if(!n.data||n==zero)
+		return 0;
+	int logn=(int)(n.data->used_size<<5)-1;
+	for(;!n.getbit(logn);--logn);
+	return logn;
+	//int logn=n.data->used_size-1;
+	//int MSS=n.data->x[logn];
+	//logn<<=5;
+	//logn|=31;//point at most significant possible bit
+	//for(;!(MSS>>(logn&31)&1);--logn);//find MSB
+	//return logn;
+}
+void	impl_ldiv(Int num, Int den, Int &Q, Int &R)//Q can't be num		don't do this at home: impl_ldiv(t, den, t, r)
+{
+	if(den==zero)
+		return;
+	char numneg=num.is_neg(), denneg=den.is_neg(), neg=numneg!=denneg;
+	num.abs();
+	den.abs();
+	int lognum=floor_log2(num);
+	Q.setzero();
+	R.setzero();
+	for(int i=lognum;i>=0;--i)//https://en.wikipedia.org/wiki/Division_algorithm
+	{
+		R<<=1;
+		R.data->x[0]|=num.getbit(i);
+		if(R>=den)
+		{
+			R-=den;
+			Q.setbit(i);
+		}
+	}
+	if(neg)
+		Q.negate();
+	if(neg)
+		R-=den;
+	if(numneg)
+		R.negate();
+}
+
+void	rotate_back(Int *data, int size)
+{
+	Int temp=std::move(data[0]);
+	for(int k=0;k<size-1;++k)
+		data[k]=std::move(data[k+1]);
+	data[size-1]=std::move(temp);
+}
+Int		impl_gcd(Int a, Int b)//by copy
+{
+	Int c=a%b;
+	while(c!=zero)
+		a=b, b=c, c=a%b;
+	return b;
+}
+Int		impl_lcm(Int *arr, int count)//array is destroyed
+{
+	Int LCM=1, test=2, t;
+	for(int it=0;;)
+	{
+		bool divided=false;
+		bool all_ones=true;
+		for(int k=0;k<count;++k)
+		{
+			auto &val=arr[k];
+			if(val!=1)
+			{
+				all_ones=false;
+				t=val/test;
+				if(t*test==val)
+				{
+					divided=true;
+					val=t;
+				}
+			}
+		}
+		if(all_ones)
+			break;
+		if(divided)
+			LCM*=test;
+		else
+		{
+			test+=2-!it;
+			++it;
+		}
+
+	}
+	return LCM;
+}
+Int		impl_intEEA(Int const &x, Int const &n)
+{
+//	Int q, r[3]={n, x}, t[3]={Int(), 1};
+
+	Int q, r[3]={n, x%n}, t[3]={Int(), 1};
+	if(x.is_neg()&&r[1]!=x)
+		printf("Warning: %s was reduced mod %s before calculating the Extended Euclidean Algorithm.\n", x.to_string().c_str(), n.to_string().c_str());
+	for(;;)
+	{
+		impl_ldiv(r[0], r[1], q, r[2]);
+		if(r[2]==zero)
+			break;
+		t[2]=t[0]-q*t[1];
+
+		rotate_back(r, 3);
+		rotate_back(t, 3);
+	}
+	r[1].abs();
+	if(r[1]!=1)
+	{
+		printf("Note: %s has no inverse mod %s\n", x.to_string().c_str(), n.to_string().c_str());
+		return zero;
+	}
+	t[1]%=n;
+	return t[1];
+}
+//void	impl_mulmodu(Int &dst, Int const &a, Int const &b, Int const &n)
+//{
+//	const Int m64=0xFFFFFFFFFFFFFFFF;
+//	auto pa=(unsigned*)&a, pb=(unsigned*)&b;
+//	Int t;
+//	impl_mod(t, m64, n);
+//	t+=1;
+//
+//	dst=((Int)pa[0]*pb[0]%n;
+//}
+Int		impl_powmod(Int const &x, Int const &e, Int const &n)
+{
+	Int mask, product(1);
+	if(e.is_neg())
+	{
+		mask=impl_intEEA(x, n);
+		if(mask==zero)//no inverse
+			return zero;
+	}
+	else
+		mask=x;
+	int nbits=floor_log2(e)+1;
+	Int Q, R;
+	for(int k=0;k<nbits;++k)
+	{
+		//if(e.is_odd())
+		if(e.getbit(k))
+		{
+			product*=mask;
+			impl_ldiv(product, n, Q, R);
+			product=R;
+		}
+		//	product.mulmod(mask, n);
+		//shr_lint(e.data, 1);
+		//if(e==zero)
+		//	break;
+		mask*=mask;
+		impl_ldiv(mask, n, Q, R);
+		mask=R;
+		//mask.mulmod(mask, n);
+	}
+	return product;
+}
+
+Int		isqrt(Int const &x)//https://en.wikipedia.org/wiki/Integer_square_root
+{
+	Int L, R=x+1;
+	int k=0;
+	while(L!=R-1)
+	{
+		Int M=L+R;
+		M>>=1;
+		if(M*M<=x)
+			L=std::move(M);
+		else
+			R=std::move(M);
+	}
+	return L;
+}
+Int		icbrt(Int const &x)
+{
+	Int L, R=x+1;
+	while(L!=R-1)
+	{
+		Int M=L+R;
+		M>>=1;
+		if(M*M*M<=x)
+			L=std::move(M);
+		else
+			R=std::move(M);
+	}
+	return L;
+}
+int		impl_isprime(Int &n)
+{
+	Int sqrtn=isqrt(n);
+	for(Int test=2;test<sqrtn;++test)
+		if(n%test==zero)
+			return false;
+	return true;
+}
+bool	impl_mrtest(Int const &n, Int const &a)
+{
+	int k=0;
+	int nbits=(int)(n.data->used_size<<5);
+	Int nm1=n-1, q=nm1;
+	for(k=0;k<nbits&&!(q.data->x[0]&1);++k, q>>=1);
+	Int aq=impl_powmod(a, q, n);
+	if(aq==one)
+		return true;
+	for(int j=0;j<k;++j)
+	{
+		if(aq==nm1)
+			return true;
+		aq.mulmod(aq, n);
+	}
+	return false;
+}
+Int		impl_genprime(Int start)
+{
+	if(!start.is_odd())
+		++start;
+	Int witness=2+rand();
+	for(;;start+=2)
+	{
+		if(impl_mrtest(start, witness))
+			break;
+	}
+	return start;
+}
+Int		impl_randlog(Int const &L)
+{
+	srand((unsigned)__rdtsc());
+	int nc=(L.to_int()+31)>>5;
+	Int r;
+	r.setzero(nc);
+	for(int k=0;k<nc;++k)
+		r.data->x[k]=rand()<<30|rand()<<15|rand();
+	return r;
+}
+Int		impl_randmod(Int const &modulus)
+{
+	srand((unsigned)__rdtsc());
+	int logn=floor_log2(modulus);
+	Int r=impl_randlog(logn);
+	Int Q, R;
+	impl_ldiv(r, modulus, Q, R);
+	return R;
+}
+void	impl_factorize(Int n, IntVec &factors, IntVec *powers, IntVec *rfactors)
+{
+	factors.clear();
+	if(powers)
+		powers->clear();
+	if(rfactors)
+		rfactors->clear();
+	auto t1=__rdtsc();
+	//for(Int test(2), latest=test;n>one;)
+	for(Int test(2);n>one;)
+	{
+		auto t2=__rdtsc();
+		if(t2-t1>0x100000000)
+			printf("\rtesting: "), test.print(), printf("\t");
+		if(n%test==zero)
+		{
+			if(powers)
+			{
+				if(!factors.size()||test!=factors.back())
+				{
+					factors.push_back(test);
+					powers->push_back(1);
+					if(rfactors)
+						rfactors->push_back(test);
+				}
+				else
+				{
+					++powers->back();
+					if(rfactors)
+						rfactors->back()*=test;
+				}
+			}
+			else
+				factors.push_back(test);
+		/*	switch(type)
+			{
+			case F_REPEATED:
+				factors.push_back(test);
+				break;
+			case F_UNIQUE:
+				if(!factors.size()||test!=factors.back())
+					factors.push_back(test);
+				break;
+			case F_UNIQUE_WITH_COUNT:
+				if(!factors.size()||test!=latest)
+				{
+					factors.push_back(test);
+					factors.push_back(1);
+					latest=test;
+				}
+				else
+					++factors.back();
+				break;
+			case F_POWERS:
+				if(!factors.size()||test!=latest)
+				{
+					factors.push_back(test);
+					latest=test;
+				}
+				else
+					factors.back()*=test;
+				break;
+			case F_POWERS_WITH_COUNT:
+				if(!factors.size()||test!=latest)
+				{
+					factors.push_back(test);
+					factors.push_back(1);
+					latest=test;
+				}
+				else
+				{
+					factors[factors.size()-2]*=test;
+					++factors.back();
+				}
+				break;
+			}//*/
+			n/=test;
+		}
+		else
+			++test;
+	}
+	auto t3=__rdtsc();
+	if(t3-t1>0x100000000)
+		printf("\n");
+}
+Int		impl_totient(Int const &n, IntVec &unique_factors, IntVec &powers)
+{
+	Int phi=1, temp;
+	for(int k=0;k<(int)unique_factors.size();++k)
+	{
+		if(powers[k]>1)
+		{
+			temp=unique_factors[k];
+			temp^=powers[k]-1;
+			temp*=unique_factors[k]-1;
+			phi*=temp;
+		}
+		else
+			phi*=unique_factors[k]-1;
+	}
+	//Int phi=unique_factors[0]-1;
+	//for(int k=1;k<(int)unique_factors.size();++k)
+	//	phi*=unique_factors[k]-1;
+	return phi;
+}
+Int		impl_carmichael(Int const &n, IntVec &unique_factors, IntVec &powers)//unique_factors is destroyed
+{
+	Int lambda=1, phi;
+	for(int k=0, nfactors=(int)unique_factors.size();k<nfactors;++k)
+	{
+		auto &prime=unique_factors[k], &power=powers[k];
+		bool half=prime==2&&power>2;
+		--power;
+		if(power>zero)
+		{
+			phi=prime^power;
+			--prime;
+			phi*=prime;
+		}
+		else
+		{
+			--prime;
+			phi=prime;
+		}
+		if(half)
+			phi>>=1;
+		unique_factors[k]=phi;
+	}
+	return impl_lcm(unique_factors.data(), (int)unique_factors.size());
+}
+bool	impl_proots(Int n, IntVec &roots)//https://en.wikipedia.org/wiki/Primitive_root_modulo_n#Finding_primitive_roots
+{
+	roots.clear();
+	n.abs();
+	if(n>0x10000)
+	{
+		auto str=n.to_string();
+		printf(
+			"Warning:\n"
+			"  About to calculate the primitive roots of %s\n"
+			"  This may take a long time and the result array may get large.\n"
+			"Enter a ZERO to proceed: ", str.c_str());
+		int c=0;
+		scanf("%d", &c);
+		if(c)
+			return false;
+	}
+	IntVec factors, powers;
+	impl_factorize(n, factors, &powers);
+	Int phi=impl_totient(n, factors, powers),
+		lambda=impl_carmichael(n, factors, powers);
+	if(lambda<phi)//no primitive roots
+	{
+		auto sn=n.to_string(), sphi=phi.to_string(), slambda=lambda.to_string();
+		printf(
+			"Note:\n"
+			"%s has no primitive roots\n"
+			"  totient = %s\n"
+			"  lambda  = %s\n", sn.c_str(), sphi.c_str(), slambda.c_str());
+		return true;
+	}
+	impl_factorize(phi, factors, &powers);
+	for(int k=0;k<(int)factors.size();++k)
+	{
+		auto &pfact=factors[k];
+		pfact=phi/pfact;
+	}
+	for(Int g=2, prod;g<n;++g)
+	{
+		Int gcd=impl_gcd(g, n);
+		if(gcd>1)
+			continue;
+		bool found=true;
+		for(int k=0;k<(int)factors.size();++k)
+		{
+			prod=g;
+			prod.powmod(factors[k], n);
+			if(prod==1)
+			{
+				found=false;
+				break;
+			}
+		}
+		if(found)
+			roots.push_back(g);
+	}
+	return true;
+}
+Int		impl_dlog(Int const &x, Int const &b, Int const &n)//r=dlog(x, b, n)	b^r = x (mod n)
+{
+	Int r, x2=1;
+	for(;;)
+	{
+		if(x2==x)
+			break;
+		x2.mulmod(b, n);
+		++r;
+	}
+	return r;
+}
+
+
 #define		G_BUF_SIZE	1024
 static char	g_buf[G_BUF_SIZE]={0};
 int			query_double(double x, int *point)
@@ -201,14 +709,10 @@ int			query_double(double x, int *point)
 }
 int			print_double(double x, int point_pos, int total)//point_pos==0: no leading spaces, total==0: no trailing spaces
 {
-//	int nbefore=sprintf_s(g_buf, G_BUF_SIZE, "%lld", (long long)abs(x));
-	double a=fabs(x);
+	double a=abs(x);
 	long long i=(long long)a;
 	int nbefore=sprintf_s(g_buf, G_BUF_SIZE, "%lld", i);
-	double tail=a-i;
-	int nafter=0;
-	if(tail>1e-10)
-		nafter=sprintf_s(g_buf, G_BUF_SIZE, "%g", tail)-2;
+	int nafter=sprintf_s(g_buf, G_BUF_SIZE, "%g", a-i)-2;
 	int neg=x<0;
 	int nspaces=point_pos-nbefore-neg;
 	if(nspaces<0)
@@ -280,41 +784,7 @@ int			print_double_frac(double x, int point_pos, int total)
 	return printed;
 }
 
-void		print_value(Comp const *c)
-{
-	int i, num, den;
-	if(c->r!=c->r||c->i!=c->i||fabs(c->r)==_HUGE||fabs(c->i)==_HUGE||fabs(c->i)>1e-10)//
-		printf("%4g+%4gi", c->r, c->i);
-	else if(fabs(c->r)<1e-10)
-		printf("   0");
-	else if(c->r==floor(c->r))
-		printf("%4g", c->r);
-	else
-	{
-		dec2frac(c->r, 1e-10, &i, &num, &den);
-		if(num)
-		{
-			if(i)
-			{
-				if(i>-10&&i<10)
-					printf("%d/%d", num+i*den, den);
-				else if(den<1000)
-					printf("%d+%d/%d", i, num, den);
-				else
-					printf("%g", c->r);
-			}
-			else if(den<1000)
-				printf("%d/%d", num, den);
-			else
-				printf("%g", c->r);
-		}
-		else
-			printf("%4d", i);
-	//	printf("%d+%d/%d", i, num, den);
-	//	printf("%4g/11", c->r*11);//
-	}
-}
-void		print_matrix_debug(Comp const *data, int w, int h)
+void		print_matrix_debug(Int const *data, int w, int h)
 {
 	int kx, ky;
 
@@ -322,211 +792,106 @@ void		print_matrix_debug(Comp const *data, int w, int h)
 	for(ky=0;ky<h;++ky)
 	{
 		for(kx=0;kx<w;++kx)
-		{
-			printf("  ");
-			print_value(data+w*ky+kx);
-		}
+			printf(" %7lld", data[w*ky+kx].to_longlong());
 		printf("\n");
 	}
 	printf("\n");
 }
 
-/*void		print_matrix(Comp const *data, int w, int h)
+void		impl_addbuffers(Int *dst, Int const *a, Int const *b, int count)
 {
-	int kx, ky;
-
-	for(ky=0;ky<h;++ky)
-	{
-		for(kx=0;kx<w;++kx)
-		{
-			printf(" ");
-		}
-		printf("\n");
-	}
+	//Comp *p=dst, *end=dst+count;
+	//__m128i va, vb;
+	//for(;p<end;++p, ++a, ++b)
+	//{
+	//	va=_mm_load_si128((__m128i*)a);
+	//	vb=_mm_load_si128((__m128i*)b);
+	//	va=_mm_add_epi64(va, vb);
+	//	_mm_store_si218((__m128i*)p, va);
+	//}
+	int k;
+	for(k=0;k<count;++k)
+		dst[k]=a[k]+b[k];
 }
-void		print_matrix_frac(Comp const *data, int w, int h)
+void		impl_subbuffers(Int *dst, Int const *a, Int const *b, int count)
 {
-}//*/
-
-double		c_abs2(Comp const *z){return z->r*z->r+z->i*z->i;}
-void		c_inv(Comp *dst, const Comp *z)
-{
-	double invabs2=1/c_abs2(z);
-	dst->r=z->r* invabs2;
-	dst->i=z->i*-invabs2;
+	//Comp *p=dst, *end=dst+count;
+	//__m128i va, vb;
+	//for(;p<end;++p, ++a, ++b)
+	//{
+	//	va=_mm_load_si128((__m128i*)a);
+	//	vb=_mm_load_si128((__m128i*)b);
+	//	va=_mm_sub_epi64(va, vb);
+	//	_mm_store_si218((__m128i*)p, va);
+	//}
+	int k;
+	for(k=0;k<count;++k)
+		dst[k]=a[k]-b[k];
 }
-void		c_mul(Comp *dst, const Comp *a, const Comp *b)//(a0+a1i)(b0+b1i)=a0b0-a1b1+i(a0b1+a1b0)	//dst, a and b can point to the same address
+void		impl_negbuffer(Int *dst, Int const *a, int count)
 {
-	double
-		r=a->r*b->r-a->i*b->i,
-		i=a->r*b->i+a->i*b->r;
-	dst->r=r, dst->i=i;
+	//__m128d va, zero=_mm_setzero_pd();
+	//Comp *p=dst, *end=dst+count;
+	//for(;p<end;p+=2, a+=2)
+	//{
+	//	va=_mm_load_pd((double*)a);
+	//	va=_mm_sub_pd(zero, va);
+	//	_mm_store_pd((double*)p, va);
+	//}
+	int k;
+	for(k=0;k<count;++k)
+		dst[k]=-a[k];
 }
-void		c_mul_add(Comp *dst, const Comp *a, const Comp *b)
+void		impl_buf_plus_val(Int *dst, Int const *buf, Int const &val, int count)
 {
-	double
-		r=a->r*b->r-a->i*b->i,
-		i=a->r*b->i+a->i*b->r;
-	dst->r+=r, dst->i+=i;
+	//__m128d va, vb=_mm_load_pd((double*)val);
+	//Comp *p=dst, *end=dst+count;
+	//for(;p<end;p+=2, a+=2)
+	//{
+	//	va=_mm_load_pd((double*)a);
+	//	va=_mm_add_pd(va, vb);
+	//	_mm_store_pd((double*)p, va);
+	//}
+	int k;
+	for(k=0;k<count;++k)
+		dst[k]=buf[k]+val;
 }
-void		c_mul_sub(Comp *dst, const Comp *a, const Comp *b)
+void		impl_val_minus_buf(Int *dst, Int const &val, Int const *buf, int count)
 {
-	double
-		r=a->r*b->r-a->i*b->i,
-		i=a->r*b->i+a->i*b->r;
-	dst->r-=r, dst->i-=i;
+	//__m128d va=_mm_load_pd((double*)val), vb;
+	//Comp *p=dst, *end=dst+count;
+	//for(;p<end;p+=2, b+=2)
+	//{
+	//	vb=_mm_load_pd((double*)b);
+	//	vb=_mm_sub_pd(va, vb);
+	//	_mm_store_pd((double*)p, vb);
+	//}
+	int k;
+	for(k=0;k<count;++k)
+		dst[k]=val-buf[k];
 }
-void		c_div(Comp *dst, const Comp *a, const Comp *b)
+void		impl_buf_mul_val(Int *dst, Int const *buf, const Int &val, int count)
 {
-	double invabsb2=1/c_abs2(b);
-	double
-		r=(a->r*b->r+a->i*b->i)*invabsb2,
-		i=(a->i*b->r-a->r*b->i)*invabsb2;
-	dst->r=r, dst->i=i;
-}
-void		c_mod(Comp *dst, const Comp *a, const Comp *b)//dst=a-floor(a/b)*b
-{
-	Comp z;
-	c_div(&z, a, b);
-	z.r=floor(z.r);
-	z.i=floor(z.i);
-	c_mul(&z, &z, b);
-	dst->r=a->r-z.r;
-	dst->i=a->i-z.i;
-}
-
-void		c_exp(Comp *dst, Comp const *x)
-{
-	double m=exp(x->r);
-	dst->r=m*cos(x->i);
-	dst->i=m*sin(x->i);
-}
-void		c_ln(Comp *dst, Comp const *x)
-{
-	double
-		r=log(sqrt(c_abs2(x))),
-		i=atan2(x->i, x->r);
-	dst->r=r, dst->i=i;
-}
-void		c_sqrt(Comp *dst, Comp const *x)//sqrt(x)=exp(0.5lnx)
-{
-	Comp temp;
-	if(x->r||x->i)
-	{
-		c_ln(&temp, x);
-		temp.r*=0.5, temp.i*=0.5;
-		c_exp(dst, &temp);
-	}
-	else
-		dst->r=x->r, dst->i=x->i;
-}
-void		c_cbrt(Comp *dst, Comp const *x)//sqrt(x)=exp(0.5lnx)
-{
-	Comp temp;
-	if(x->r||x->i)
-	{
-		c_ln(&temp, x);
-		temp.r*=1./3, temp.i*=1./3;
-		c_exp(dst, &temp);
-	}
-	else
-		dst->r=x->r, dst->i=x->i;
+	//Comp *p=dst, *end=dst+count;
+	//for(;p<end;p+=2, a+=2)
+	//	c_mul(p, a, val);
+	int k;
+	for(k=0;k<count;++k)
+		dst[k]=buf[k]*val;
 }
 
-void		impl_addbuffers(Comp *dst, Comp const *a, Comp const *b, int count)
-{
-	Comp *p=dst, *end=dst+count;
-	__m128d va, vb;
-	for(;p<end;++p, ++a, ++b)
-	{
-		va=_mm_load_pd((double*)a);
-		vb=_mm_load_pd((double*)b);
-		va=_mm_add_pd(va, vb);
-		_mm_store_pd((double*)p, va);
-	}
-	//int k;
-	//for(k=0;k<size;++k)
-	//	dst[k]=a[k]+b[k];
-}
-void		impl_subbuffers(Comp *dst, Comp const *a, Comp const *b, int count)
-{
-	__m128d va, vb;
-	Comp *p=dst, *end=dst+count;
-	for(;p<end;++p, ++a, ++b)
-	{
-		va=_mm_load_pd((double*)a);
-		vb=_mm_load_pd((double*)b);
-		va=_mm_sub_pd(va, vb);
-		_mm_store_pd((double*)p, va);
-	}
-	//int k;
-	//for(k=0;k<size;++k)
-	//	dst[k]=a[k]-b[k];
-}
-void		impl_negbuffer(Comp *dst, Comp const *a, int count)
-{
-	__m128d va, zero=_mm_setzero_pd();
-	Comp *p=dst, *end=dst+count;
-	for(;p<end;++p, ++a)
-	{
-		va=_mm_load_pd((double*)a);
-		va=_mm_sub_pd(zero, va);
-		_mm_store_pd((double*)p, va);
-	}
-	//int k;
-	//for(k=0;k<size;++k)
-	//	dst[k]=-a[k];
-}
-void		impl_buf_plus_val(Comp *dst, Comp const *a, const Comp *val, int count)
-{
-	__m128d va, vb=_mm_load_pd((double*)val);
-	Comp *p=dst, *end=dst+count;
-	for(;p<end;++p, ++a)
-	{
-		va=_mm_load_pd((double*)a);
-		va=_mm_add_pd(va, vb);
-		_mm_store_pd((double*)p, va);
-	}
-	//int k;
-	//for(k=0;k<size;++k)
-	//	dst[k]=buf[k]+val;
-}
-void		impl_val_minus_buf(Comp *dst, const Comp *val, Comp const *b, int count)
-{
-	__m128d va=_mm_load_pd((double*)val), vb;
-	Comp *p=dst, *end=dst+count;
-	for(;p<end;++p, ++b)
-	{
-		vb=_mm_load_pd((double*)b);
-		vb=_mm_sub_pd(va, vb);
-		_mm_store_pd((double*)p, vb);
-	}
-	//int k;
-	//for(k=0;k<size;++k)
-	//	dst[k]=val-buf[k];
-}
-void		impl_buf_mul_val(Comp *dst, Comp const *a, const Comp *val, int count)
-{
-	Comp *p=dst, *end=dst+count;
-	for(;p<end;++p, ++a)
-		c_mul(p, a, val);
-	//int k;
-	//for(k=0;k<size;++k)
-	//	dst[k]=buf[k]*val;
-}
-
-void		impl_ref(Comp *m, short dx, short dy)
+void		impl_ref(Int *m, short dx, short dy, Int const &n)
 {
 #ifdef _DEBUG
-	Comp pivot;
+	Int pivot;
 #endif
-	Comp coeff, temp;
+	Int coeff, temp;
 	int mindim=dx<dy?dx:dy, it, ky, kx, npivots, kpivot;
 	for(it=0, npivots=0;it<mindim;++it)//iteration
 	{
 		for(ky=npivots;ky<dy;++ky)//find pivot
 		{
-			if(c_abs2(m+dx*ky+it)>1e-10)
+			if(m[dx*ky+it]!=zero)
 			{
 #ifdef _DEBUG
 				pivot=m[dx*ky+it];
@@ -543,32 +908,26 @@ void		impl_ref(Comp *m, short dx, short dy)
 					coeff=m[dx*it+kx], m[dx*it+kx]=m[dx*ky+kx], m[dx*ky+kx]=coeff;
 			for(++ky;ky<dy;++ky)//subtract pivot row
 			{
-				c_div(&coeff, m+dx*ky+it, m+dx*kpivot+it);
-				//coeff=m[dx*ky+it]/m[dx*kpivot+it];
+				coeff=m[dx*ky+it]/m[dx*kpivot+it];
 				for(kx=it;kx<dx;++kx)
-				{
-					c_mul(&temp, &coeff, m+dx*kpivot+kx);
-					m[dx*ky+kx].r-=temp.r;
-					m[dx*ky+kx].i-=temp.i;
-				}
-					//m[dx*ky+kx]-=coeff*m[dx*kpivot+kx];
+					m[dx*ky+kx]-=coeff*m[dx*kpivot+kx];
 			}
 		}
 	}
 }
-void		impl_rref(Comp *m, short dx, short dy)
+void		impl_rref(Int *m, short dx, short dy, Int const &n)
 {
 #ifdef _DEBUG
-	Comp pivot;
+	Int pivot;
 #endif
-	Comp coeff, temp;
+	Int coeff, temp;
 	int mindim=dx<dy?dx:dy, it, ky, kx, npivots, kpivot;
 	for(it=0, npivots=0;it<mindim;++it)//iteration
 	{
 		kpivot=-1;
 		for(ky=npivots;ky<dy;++ky)//find pivot
 		{
-			if(c_abs2(m+dx*ky+it)>1e-10)
+			if(m[dx*ky+it]!=zero)
 			{
 #ifdef _DEBUG
 				pivot=m[dx*ky+it];
@@ -581,46 +940,37 @@ void		impl_rref(Comp *m, short dx, short dy)
 		if(kpivot==-1)
 			continue;
 		if(kpivot>npivots-1)
-		//if(ky>it)//X
 		{
 			for(kx=0;kx<dx;++kx)//swap rows
 				coeff=m[dx*kpivot+kx], m[dx*kpivot+kx]=m[dx*(npivots-1)+kx], m[dx*(npivots-1)+kx]=coeff;
-				//coeff=m[dx*it+kx], m[dx*it+kx]=m[dx*ky+kx], m[dx*ky+kx]=coeff;//X
 			kpivot=npivots-1;
 		}
 		for(ky=0;ky<dy;++ky)
 		{
 			if(ky==kpivot)//normalize pivot row
 			{
-				c_inv(&coeff, m+dx*kpivot+it);
-				//coeff=1/m[dx*kpivot+it];
+				coeff=1/m[dx*kpivot+it];
 				for(kx=it;kx<dx;++kx)
-					c_mul(m+dx*kpivot+kx, m+dx*kpivot+kx, &coeff);
-					//m[dx*kpivot+kx]*=coeff;
+					m[dx*kpivot+kx]*=coeff;
 			}
 			else//subtract pivot row from all other rows
 			{
-				c_div(&coeff, m+dx*ky+it, m+dx*kpivot+it);
-				//coeff=m[dx*ky+it]/m[dx*kpivot+it];
+				coeff=m[dx*ky+it]/m[dx*kpivot+it];
 				for(kx=it;kx<dx;++kx)
-				{
-					c_mul(&temp, &coeff, m+dx*kpivot+kx);
-					m[dx*ky+kx].r-=temp.r;
-					m[dx*ky+kx].i-=temp.i;
-				}
-					//m[dx*ky+kx]-=coeff*m[dx*kpivot+kx];
+					m[dx*ky+kx]-=coeff*m[dx*kpivot+kx];
 			}
 			//print_matrix_debug(m, dx, dy);//
 		}
 	}
 }
-void		impl_rref2(Comp *m, short dx, short dy)
+void		impl_rref2(Int *m, short dx, short dy, Int const &n)//may be buggy
 {
-	Comp pivot;
-	Comp coeff, temp;
-	int mindim=dx<dy?dx:dy, it, ky, kx;
-	for(it=0;it<mindim;++it)//iteration
+	Int pivot;
+	Int coeff, temp;
+	int mindim=dx<dy?dx:dy, it, ky, kx, npivots, kpivot;
+	for(it=0, npivots=0;it<mindim;++it)//iteration
 	{
+		kpivot=-1;
 		//printf("Enter pivot ky: ");
 		//scanf_s("%d", &ky);
 		//pivot=m[dx*ky+it];
@@ -629,90 +979,84 @@ void		impl_rref2(Comp *m, short dx, short dy)
 		//printf("\n");
 		for(ky=it;ky<dy;++ky)//find pivot
 		{
-			if(c_abs2(m+dx*ky+it)>1e-10)
+			if(m[dx*ky+it]!=zero)
 			{
 				pivot=m[dx*ky+it];
 				printf("pivot=");
-				print_value(&pivot);
+				pivot.print();
 				printf("\n");
-				//printf("pivot=%g+%gi\n", pivot.r, pivot.i);
+				kpivot=ky;
+				++npivots;
 				break;
 			}
 		}
-		if(ky<dy)
+		if(kpivot==-1)
+			continue;
+		if(kpivot>npivots-1)
 		{
-			if(ky!=it)
+			for(kx=0;kx<dx;++kx)//swap rows
+				coeff=m[dx*kpivot+kx], m[dx*kpivot+kx]=m[dx*(npivots-1)+kx], m[dx*(npivots-1)+kx]=coeff;
+			kpivot=npivots-1;
+		}
+		for(ky=0;ky<dy;++ky)
+		{
+			if(ky==kpivot)//normalize pivot
 			{
-				for(kx=0;kx<dx;++kx)//swap rows
-					coeff=m[dx*it+kx], m[dx*it+kx]=m[dx*ky+kx], m[dx*ky+kx]=coeff;
+				coeff=1/m[dx*kpivot+it];
+				for(kx=it;kx<dx;++kx)
+					m[dx*kpivot+kx]*=coeff;
 			}
-			for(ky=0;ky<dy;++ky)
+			else//subtract pivot row from all other rows
 			{
-				if(ky==it)//normalize pivot
-				{
-					c_inv(&coeff, m+dx*it+it);
-					//coeff=1/m[dx*it+it];
-					for(kx=it;kx<dx;++kx)
-						c_mul(m+dx*it+kx, m+dx*it+kx, &coeff);
-						//m[dx*it+kx]*=coeff;
-				}
-				else//subtract pivot row from all other rows
-				{
-					c_div(&coeff, m+dx*ky+it, m+dx*it+it);
-					//coeff=m[dx*ky+it]/m[dx*it+it];
-					for(kx=it;kx<dx;++kx)
-					{
-						c_mul(&temp, &coeff, m+dx*it+kx);
-						m[dx*ky+kx].r-=temp.r;
-						m[dx*ky+kx].i-=temp.i;
-					}
-						//m[dx*ky+kx]-=coeff*m[dx*it+kx];
-				}
-				print_matrix_debug(m, dx, dy);
+				coeff=m[dx*ky+it]/m[dx*kpivot+it];
+				for(kx=it;kx<dx;++kx)
+					m[dx*ky+kx]-=coeff*m[dx*kpivot+kx];
 			}
+			print_matrix_debug(m, dx, dy);
 		}
 	}
 }
-Comp		impl_det(Comp *m, int dx)//m is destroyed
+Int			impl_det(Int *m, int dx, Int const &n)//m is destroyed
 {
 	int k, dxplus1=dx+1;
-	Comp result;
+	Int result;
 
 	//print_matrix_debug(m, dx, dx);//
-	impl_ref(m, dx, dx);
+	impl_ref(m, dx, dx, n);
 	//print_matrix_debug(m, dx, dx);//
 
-	result=m[0];//accumulate diagonal
+	result=m[0];//multiply diagonals
 	for(k=1;k<dx;++k)
-		c_mul(&result, &result, m+dxplus1*k);
+		result*=m[dxplus1*k];
 	return result;
 }
-void		impl_matinv(Comp *m, short dx)//resize m to (dy * 2dx) temporarily,		dx==dy always
+void		impl_matinv(Int *m, short dx, Int const &n)//resize m to (dy * 2dx) temporarily,		dx==dy always
 {
 	int k, dy=dx, size=dx*dy;
 			//print_matrix_debug(m, dx<<1, dy);//
 	for(k=size-dx;k>=0;k-=dx)//expand M into [M, 0]
 	{
-		CMEMCPY(m+(k<<1), m+k, dx);
-		//memcpy(m+(k<<1), m+k, dx*sizeof(double));
-		CMEMZERO(m+(k<<1)+dx, dx);
-		//memset(m+(k<<1)+dx, 0, dx*sizeof(double));
+		objmove(m+((ptrdiff_t)k<<1), m+k, dx);
+		//MEMCPY(m+(k<<1), m+k, dx);
+		setzero(m+((ptrdiff_t)k<<1)+dx, dx);
+		//MEMZERO(m+(k<<1)+dx, dx);
 	}
 			//print_matrix_debug(m, dx<<1, dy);//
 	for(k=0;k<dx;++k)//add identity: [M, I]
-		m[(dx<<1)*k+dx+k].r=1;
+		m[(dx<<1)*k+dx+k]=1;
 			//print_matrix_debug(m, dx<<1, dy);//
-	impl_rref(m, dx<<1, dy);//[I, M^-1]
+	impl_rref(m, dx<<1, dy, n);//[I, M^-1]
 			//print_matrix_debug(m, dx<<1, dy);//
 	for(k=0;k<size;k+=dx)//pack M^-1
-		CMEMCPY(m+k, m+(k<<1)+dx, dx);
-		//memcpy(m+k, m+(k<<1)+dx, dx*sizeof(double));
+		objmove(m+k, m+((ptrdiff_t)k<<1)+dx, dx);
+		//MEMCPY(m+k, m+(k<<1)+dx, dx);
 			//print_matrix_debug(m, dx<<1, dy);//
 }
-void		impl_matmul(Comp *dst, const Comp *m1, const Comp *m2, int h1, int w1h2, int w2)
+void		impl_matmul(Int *dst, const Int *m1, const Int *m2, int h1, int w1h2, int w2)
 {
 	int kx, ky, kv;
-	Comp *C, temp;
+	Int *C, temp;
+//	MEMZERO(dst, h1*w2);
 //#ifdef DEBUG_MEMORY
 //	printf("impl_matmul():\n");
 //	print_matrix_debug(dst, w2, h1);
@@ -726,17 +1070,13 @@ void		impl_matmul(Comp *dst, const Comp *m1, const Comp *m2, int h1, int w1h2, i
 		for(kx=0;kx<w2;++kx)
 		{
 			C=dst+w2*ky+kx;
-			C->r=0, C->i=0;
+			C->setzero();
 			for(kv=0;kv<w1h2;++kv)
-			{
-				c_mul(&temp, m1+w1h2*ky+kv, m2+w2*kv+kx);
-				C->r+=temp.r, C->i+=temp.i;
-			}
-				//*C+=m1[w1h2*ky+kv]*m2[w2*kv+kx];
+				*C+=m1[w1h2*ky+kv]*m2[w2*kv+kx];
 		}
 	}
 }
-void		impl_transpose(Comp *dst, const Comp *src, int src_dx, int src_dy)
+void		impl_transpose(Int *dst, const Int *src, int src_dx, int src_dy)
 {
 	int ky, kx;
 
@@ -744,10 +1084,10 @@ void		impl_transpose(Comp *dst, const Comp *src, int src_dx, int src_dy)
 		for(kx=0;kx<src_dx;++kx)
 			dst[src_dy*kx+ky]=src[src_dx*ky+kx];
 }
-void		impl_tensor(Comp *dst, const Comp *m1, const Comp *m2, int dx1, int dy1, int dx2, int dy2)
+void		impl_tensor(Int *dst, Int const *m1, const Int *m2, int dx1, int dy1, int dx2, int dy2)
 {
 	int dx, kx, ky, kx2, ky2;
-	Comp coeff;
+	Int coeff;
 
 	dx=dx1*dx2;
 	for(ky=0;ky<dy1;++ky)
@@ -757,63 +1097,63 @@ void		impl_tensor(Comp *dst, const Comp *m1, const Comp *m2, int dx1, int dy1, i
 			coeff=m1[dx1*ky+kx];
 			for(ky2=0;ky2<dy2;++ky2)
 				for(kx2=0;kx2<dx2;++kx2)
-					c_mul(dst+dx*(dy2*ky+ky2)+dx2*kx+kx2, &coeff, m2+dx2*ky2+kx2);
-					//dst[dx*(dy2*ky+ky2)+dx2*kx+kx2]=coeff*m2[dx2*ky2+kx2];
+					dst[dx*(dy2*ky+ky2)+dx2*kx+kx2]=coeff*m2[dx2*ky2+kx2];
 		}
 	}
 }
-void		impl_matdiv(Comp *dst, const Comp *num, Comp *den, int num_dy, int dx)//dst & num: num_dy*dx,  den: dx*(dx*2)		den is destroyed
+void		impl_matdiv(Int *dst, Int const *num, Int *den, int num_dy, int dx, Int const &n)//dst & num: num_dy*dx,  den: dx*(dx*2)		den is destroyed
 {
-	impl_matinv(den, dx);
+	impl_matinv(den, dx, n);
 
 	impl_matmul(dst, num, den, num_dy, dx, dx);
 }
-void		impl_matdiv_back(Comp *dst, Comp *den, const Comp *num, int dy, int num_dx)//den: dy*(dy*2),  dst & num: dy*num_dx		den is destroyed
+void		impl_matdiv_back(Int *dst, Int *den, const Int *num, int dy, int num_dx, Int const &n)//den: dy*(dy*2),  dst & num: dy*num_dx		den is destroyed
 {
-	impl_matinv(den, dy);
+	impl_matinv(den, dy, n);
 
 	impl_matmul(dst, den, num, dy, dy, num_dx);
 }
-void		impl_matpow(Comp *dst, Comp *m1, int e, int dx)//dst: dx*dx,  m1: dx*(dx*2)		calculates m1^e,	m1 is destroyed
+void		impl_matpow(Int *dst, Int *m1, int e, int dx, Int const &n)//dst: dx*dx,  m1: dx*(dx*2)		calculates m1^e,	m1 is destroyed
 {
 	int k, size=dx*dx;
-	Comp *temp=m1+size;
+	Int *temp=m1+size;
 
 	if(e<0)//negative exponent
 	{
 		e=-e;
-		impl_matinv(m1, dx);
+		impl_matinv(m1, dx, n);
 	}
 	//memcpy(x, m1, size*sizeof(double));
 
-	CMEMZERO(dst, size);
-	//memset(dst, 0, size*sizeof(double));//identity matrix
+	setzero(dst, size);
+	//MEMZERO(dst, size);//identity matrix
 	for(k=0;k<size;k+=dx+1)
-		dst[k].r=1;
+		dst[k]=1;
 
 	for(;;)
 	{
 		if(e&1)
 		{
 			impl_matmul(temp, dst, m1, dx, dx, dx);
-			CMEMCPY(dst, temp, size);
-			//memcpy(dst, temp, size*sizeof(double));
+			objmove(dst, temp, size);
+			//MEMCPY(dst, temp, size);
 		}
 		e>>=1;
 		if(!e)
 			break;
 		impl_matmul(temp, m1, m1, dx, dx, dx);
-		CMEMCPY(m1, temp, size);
-		//memcpy(m1, temp, size*sizeof(double));
+		objmove(m1, temp, size);
+		//MEMCPY(m1, temp, size);
 	}
 }
 
-void		impl_lu(Comp const *m, int n, Comp *lower, Comp *upper)
+#if 0
+void		impl_lu(Int const *m, int n, Int *lower, Int *upper)
 {
-	Comp sum;
+	Int sum;
 	int i, j, k, idx;
 	int size=n*n;
-	CMEMZERO(lower, size), CMEMZERO(upper, size);
+	MEMZERO(lower, size), MEMZERO(upper, size);
  
 	//Decomposing matrix into Upper and Lower triangular matrix
 	for(i=0;i<n;++i)//https://www.geeksforgeeks.org/doolittle-algorithm-lu-decomposition/
@@ -821,39 +1161,34 @@ void		impl_lu(Comp const *m, int n, Comp *lower, Comp *upper)
 		for(k=i;k<n;++k)//Upper Triangular
 		{
 			//Summation of L(i, j) * U(j, k)
-			sum.r=sum.i=0;
+			sum=zero;
 			for(j=0;j<i;++j)
-				c_mul_add(&sum, lower+n*i+j, upper+n*j+k);
-				//sum+=lower[n*i+j]*upper[n*j+k];
+				sum+=lower[n*i+j]*upper[n*j+k];
  
 			//Evaluating U(i, k)
 			idx=n*i+k;
-			upper[idx].r=m[idx].r-sum.r;
-			upper[idx].i=m[idx].i-sum.i;
+			upper[idx]=m[idx]-sum;
 			//upper[i][k] = mat[i][k] - sum;
 		}
 		for(k=i;k<n;++k)//Lower Triangular
 		{
 			if(i==k)
-				lower[n*i+i].r=1, lower[n*i+i].i=0;//Diagonal as 1
+				lower[n*i+i]=1;//Diagonal as 1
 			else
 			{
 				//Summation of L(k, j) * U(j, i)
-				sum.r=sum.i=0;
+				sum=zero;
 				for(j=0;j<i;++j)
-					c_mul_add(&sum, lower+n*i+j, upper+n*j+k);
-					//sum+=lower[n*k+j]*upper[n*j+i];
+					sum+=lower[n*k+j]*upper[n*j+i];
  
 				//Evaluating L(k, i)
-				sum.r=m[n*k+i].r-sum.r;
-				sum.i=m[n*k+i].i-sum.i;
-				c_div(lower+n*k+i, &sum, upper+n*i+i);
-				//lower[n*k+i]=(mat[n*k+i]-sum)/upper[n*i+i];
+				sum=m[n*k+i]-sum;
+				lower[n*k+i]=(m[n*k+i]-sum)/upper[n*i+i];
 			}
 		}
 	}
 }
-void		impl_qr(Comp const *M, int n, Comp *Q, Comp *R, double *temp)//temp: a buffer of 2n doubles
+void		impl_qr(Int const *M, int n, Int *Q, Int *R, double *temp)//temp: a buffer of 2n doubles
 {
 	//factorizes a REAL square matrix M into Q and R
 	//where Q is orthogonal and R is upper triangular
@@ -862,9 +1197,9 @@ void		impl_qr(Comp const *M, int n, Comp *Q, Comp *R, double *temp)//temp: a buf
 	int i, j, k;
 	double *col=temp, *uvec=temp+n, d;
 
-	DMEMZERO(temp, n<<1);
-//	DALLOC(col, n<<1);
-//	DMEMZERO(col, n<<1);
+	MEMZERO(temp, n<<1);
+//	ALLOC(col, n<<1);
+//	MEMZERO(col, n<<1);
 	uvec=col+n;
 	for(i=0;i<n;++i)
 	{
@@ -890,24 +1225,21 @@ void		impl_qr(Comp const *M, int n, Comp *Q, Comp *R, double *temp)//temp: a buf
 		for(k=0;k<n;++k)
 			Q[n*k+i].r=col[k]*d;
 	}
-//	DFREE(col);
+//	FREE(col);
 }
+#endif
 
-void		c_det22(Comp *result, Comp const *M)
+#if 0
+Int			c_det22(Int const *M)
 {
-	Comp t[2];
-	c_mul(t, M, M+3);
-	c_mul(t+1, M+1, M+2);
-	result->r=t->r-t[1].r;
-	result->i=t->i-t[1].i;
+	return M[0]*M[3]-M[1]*M[2];
 }
-void		impl_egval2(Comp *M, Comp *lambdas)//finds the eigenvalues of a complex 2x2 matrix
+void		impl_egval2(Int const *M, Int *lambdas)//finds the eigenvalues of a complex 2x2 matrix
 {
-	Comp C[2], temp;
+	Int C[2], temp;
 
-	c_det22(C, M);			//C0=det(M)
-	C[1].r=-(M[0].r+M[3].r);//C1=tr(M)
-	C[1].i=-(M[0].i+M[3].i);
+	C[0]=c_det22(M);//C0=det(M)
+	C[1]=-M[0]-M[3];//C1=-tr(M)
 
 	//quadratic formula		lambda = C1*-0.5 +- sqrt(C1*C1*0.25-C0)
 	C[1].r*=-0.5;
@@ -919,13 +1251,13 @@ void		impl_egval2(Comp *M, Comp *lambdas)//finds the eigenvalues of a complex 2x
 	lambdas[0].r=C[1].r-temp.r, lambdas[0].i=C[1].i-temp.i;
 	lambdas[1].r=C[1].r+temp.r, lambdas[1].i=C[1].i+temp.i;
 }
-void		impl_solve_cubic(Comp const *coeffs, Comp *roots)//finds r[0], r[1], & r[2], the solutions of x^3 + c[2]x^2 + c[1]x + c[0] = 0
+void		impl_solve_cubic(Int const *coeffs, Int *roots)//finds r[0], r[1], & r[2], the solutions of x^3 + c[2]x^2 + c[1]x + c[0] = 0
 {
 	//https://math.stackexchange.com/questions/15865/why-not-write-the-solutions-of-a-cubic-this-way/18873#18873
 	Comp p=coeffs[2], q=coeffs[1], r=coeffs[0],
 		p2, p3, q2, prod, A, B;
-	double _3sqrt3=3*sqrt(3), inv3cbrt2=1./(3*cbrt(2)), ninth=1./9;
-	Comp cm={-0.5, -sqrt(3)*0.5}, cp={-0.5, sqrt(3)*0.5};
+	double _3sqrt3=3*sqrt(3.), inv3cbrt2=1./(3*cbrt(2.)), ninth=1./9;
+	Comp cm={-0.5, -sqrt(3.)*0.5}, cp={-0.5, sqrt(3.)*0.5};
 
 	c_mul(&p2, &p, &p);
 	c_mul(&p3, &p2, &p);
@@ -972,7 +1304,7 @@ void		impl_solve_cubic(Comp const *coeffs, Comp *roots)//finds r[0], r[1], & r[2
 	c_mul_add(roots+2, &A, &cp);
 	c_mul_sub(roots+2, &B, &cm);
 }
-void		impl_egval3(Comp const *M, Comp *lambdas)//finds the eigenvalues of a complex 3x3 matrix
+void		impl_egval3(Int const *M, Int *lambdas)//finds the eigenvalues of a complex 3x3 matrix
 {
 	Comp C[3], temp;
 	
@@ -999,7 +1331,7 @@ void		impl_egval3(Comp const *M, Comp *lambdas)//finds the eigenvalues of a comp
 
 	impl_solve_cubic(C, lambdas);
 }
-int			is_upper_triangular(Comp *M, int n)
+int			is_upper_triangular(Int *M, int n)
 {
 	int k, k2;
 	const double tolerance=1e-10;
@@ -1009,7 +1341,7 @@ int			is_upper_triangular(Comp *M, int n)
 				return 0;
 	return 1;
 }
-void		impl_egval(Comp const *M, int n, Comp *D, int it_limit)
+void		impl_egval(Int const *M, int n, Int *D, int it_limit)
 {
 	int size=n*n, it=0;
 	Comp *CALLOC(temp, size*2+n);
@@ -1023,7 +1355,7 @@ void		impl_egval(Comp const *M, int n, Comp *D, int it_limit)
 	}while(it<it_limit&&!is_upper_triangular(D, n));
 	CFREE(temp);
 }
-int			impl_nullspace(Comp *M, int dx, int dy, Comp *solution, char *dep_flags, short *row_idx)
+int			impl_nullspace(Int *M, int dx, int dy, Int *solution, char *dep_flags, short *row_idx)
 {
 	//M is rref'ed
 	//solution allocated size dy*dy, pre-memset solution to zero
@@ -1111,7 +1443,7 @@ int			impl_nullspace(Comp *M, int dx, int dy, Comp *solution, char *dep_flags, s
 #endif
 	return nvec;
 }
-int			impl_egvec(Comp const *M, int n, Comp const *lambdas, Comp *S)
+int			impl_egvec(Int const *M, int n, Int const *lambdas, Int *S)
 {
 	int kv, kx, nvec, size=n*n, again;
 	Comp *CALLOC(temp, size);
@@ -1146,10 +1478,10 @@ int			impl_egvec(Comp const *M, int n, Comp const *lambdas, Comp *S)
 		//			break;
 		//}
 	}
-	free(dep_flags), free(row_idx), CFREE(temp);
+	free(dep_flags), free(row_idx);
 	return nvec;
 }
-int			impl_diag2(Comp const *M, Comp *invS, Comp *D, Comp *S)//diagonalizes a complex 2x2 matrix
+int			impl_diag2(Int const *M, Int *invS, Int *D, Int *S)//diagonalizes a complex 2x2 matrix
 {
 	int k, nvec;
 	Comp C[2], temp, M2[4];
@@ -1239,28 +1571,23 @@ int			impl_diag2(Comp const *M, Comp *invS, Comp *D, Comp *S)//diagonalizes a co
 		c_mul(invS+k, invS+k, &temp);
 	return 1;
 }
+#endif
 
 //polynomials are stored as they are read	p[0]*x^(n-1) + p[1]*x^(n-2) + ...p[n-1] of degree n-1
-void		impl_polmul(Comp *res, Comp const *A, Comp const *B, int asize, int bsize, int add)//res has correct size of (asize+bsize-1)
+void		impl_polmul(Int *res, Int const *A, Int const *B, int asize, int bsize, int add)//res has correct size of (asize+bsize-1)
 {//int add:  -1: subtract from res;  0: overwrite res;  1: add to res
 	int dst_size=asize+bsize-1, k, k2;
-	Comp coeff, sign={1, 0}, temp;
+	Int coeff, sign={1, 0}, temp;
 	if(add==-1)
-		sign.r=-1;
+		sign=-1;
 	if(!add)
-		CMEMZERO(res, dst_size);
-		//memset(res, 0, dst_size*sizeof(double));
+		setzero(res, dst_size);
+		//MEMZERO(res, dst_size);
 	for(k=0;k<asize;++k)//schoolbook O(n2)
 	{
-		c_mul(&coeff, &sign, A+asize-1-k);
-		//coeff=sign*A[asize-1-k];
+		coeff=sign*A[asize-1-k];
 		for(k2=0;k2<bsize;++k2)
-		{
-			c_mul(&temp, &coeff, B+bsize-1-k2);
-			res[dst_size-1-k-k2].r+=temp.r;
-			res[dst_size-1-k-k2].i+=temp.i;
-		}
-			//res[dst_size-1-k-k2]+=coeff*B[bsize-1-k2];
+			res[dst_size-1-k-k2]+=coeff*B[bsize-1-k2];
 	}
 }
 #if 0

@@ -14,11 +14,17 @@
 //You should have received a copy of the GNU General Public License
 //along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+#define _CRT_SECURE_NO_WARNINGS
 #include	<stdarg.h>
 #include	<math.h>
 #include	<map>
 #include	<algorithm>
 #include	<tmmintrin.h>
+#ifdef _MSC_VER
+#include<intrin.h>
+#else
+#include<x86intrin.h>
+#endif
 //#include	<conio.h>
 #include	"mc2.h"
 const char	file[]=__FILE__;
@@ -511,6 +517,7 @@ inline void	c_max(Comp &m0, double &mag, double &phase, Comp const &z)//Matlab s
 	}
 }
 
+//arbitrary size but slow O(n^2) transforms
 void		dft_init(int size, Comp *&weights, Comp *&temp, bool inverse)
 {
 	CALLOC(weights, size*size);
@@ -608,7 +615,7 @@ bool		polmul(Matrix &dst, Matrix const &a, Matrix const &b, int idx0)
 
 void		impl_poladd(std::vector<Comp> &dst, std::vector<Comp> const &f)
 {
-	int s0=dst.size(), s1=f.size();
+	int s0=(int)dst.size(), s1=(int)f.size();
 	if(s0<s1)
 	{
 		dst.resize(s1);
@@ -622,7 +629,7 @@ void		impl_poladd(std::vector<Comp> &dst, std::vector<Comp> const &f)
 }
 void		impl_polsub(std::vector<Comp> &dst, std::vector<Comp> const &f)
 {
-	int s0=dst.size(), s1=f.size();
+	int s0=(int)dst.size(), s1=(int)f.size();
 	if(s0<s1)
 	{
 		dst.resize(s1);
@@ -769,7 +776,7 @@ int			print_term(Comp const &z, bool plus, bool parens, int power)
 int			print_poly(std::vector<Comp> const &p, const char *vname)
 {
 	int printed=0;
-	for(int k=p.size()-1;k>=0;--k)
+	for(int k=(int)p.size()-1;k>=0;--k)
 	{
 		bool plus=printed!=0;
 		int dp=0;
@@ -978,7 +985,7 @@ int			str_coeff(std::string &str, Comp const &z, bool plus, bool parens, short p
 int			str_poly(std::string &str, std::vector<Comp> const &p, const char *vname, int vlen)
 {
 	int printed=0;
-	for(int k=p.size()-1;k>=0;--k)
+	for(int k=(int)p.size()-1;k>=0;--k)
 	{
 		bool plus=printed!=0;
 		int dp=0;
@@ -1022,19 +1029,19 @@ void		print_polmat(std::vector<Comp> const *mp, unsigned short dx, unsigned shor
 	std::vector<int> indices(dy*dx+1);
 	std::string polys;
 	//std::vector<std::string> v(dy*dx);
-	int vlen=strlen(vname);
+	int vlen=(int)strlen(vname);
 	for(int ky=0;ky<dy;++ky)
 	{
 		for(int kx=0;kx<dx;++kx)
 		{
-			indices[dx*ky+kx]=polys.size();
+			indices[dx*ky+kx]=(int)polys.size();
 			int printed=str_poly(polys, mp[dx*ky+kx], vname, vlen);
 			if(widths[kx]<printed)
 				widths[kx]=printed;
 			//str_poly(v[dx*ky+kx], mp[dx*ky+kx], vname, vlen);
 		}
 	}
-	indices[dx*dy]=polys.size();
+	indices[dx*dy]=(int)polys.size();
 	for(int ky=0;ky<dy;++ky)
 	{
 		for(int kx=0;kx<dx;++kx)
@@ -1252,7 +1259,7 @@ bool		r_row_vector(Matrix &m)
 		case T_COMMA:
 			{
 				Matrix m2;
-				int esize=errors.size();
+				int esize=(int)errors.size();
 				if(!r_equality(m2, true))
 				{
 					if(t==T_SPACE)//trailing whitespace
@@ -1546,7 +1553,7 @@ bool		r_unary(Matrix &m, bool space_sensitive)
 					if(a_idx<0)
 						a_idx=0;
 					if(a_idx>=(int)g_answers.size())
-						a_idx=g_answers.size()-1;
+						a_idx=(int)g_answers.size()-1;
 					m=g_answers[a_idx];
 				}
 				break;
@@ -2459,7 +2466,7 @@ bool		r_unary(Matrix &m, bool space_sensitive)
 					case T_NEWLINE:
 						{
 							Matrix m2;
-							int esize=errors.size();
+							int esize=(int)errors.size();
 							if(!r_row_vector(m2))
 							{
 								if(t==T_NEWLINE)//trailing whitespace
@@ -2996,7 +3003,7 @@ int			solve(std::string &str, bool again)
 	//const int nspaces=sizeof(spaces)-1;//should be at least 16
 	//str+=spaces;
 
-	lex_init(str.c_str(), str.size()-nspaces);
+	lex_init(str.c_str(), (int)(str.size()-nspaces));
 	parse_incomplete=false;
 	if(!g_answers.size()||!again&&g_answers.back().data)
 		g_answers.push_back(Matrix());
@@ -3016,7 +3023,7 @@ int			solve(std::string &str, bool again)
 		{
 			str.insert(str.size(), nspaces, ' ');
 			//str+=spaces;
-			lex_init(str.c_str(), str.size()-nspaces);
+			lex_init(str.c_str(), (int)(str.size()-nspaces));
 			goto parse_file;
 		}
 		ret=SOLVE_OK_NO_ANS;
